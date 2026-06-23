@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMC Power Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b
+        }
+
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 20;
+            background: #0ea5e9;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 18px;
+            cursor: pointer
+        }
+
+        @media(max-width:640px) {
+            .menu-toggle {
+                display: block
+            }
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 220px;
+            height: 100vh;
+            background: #ffffff;
+            padding: 24px 0;
+            z-index: 10;
+            border-right: 1px solid #e2e8f0;
+            transition: transform .3s
+        }
+
+        @media(max-width:640px) {
+            .sidebar {
+                transform: translateX(-100%)
+            }
+
+            .sidebar.open {
+                transform: translateX(0)
+            }
+        }
+
+        .sidebar h2 {
+            color: #0ea5e9;
+            padding: 0 20px 20px;
+            font-size: 18px;
+            border-bottom: 1px solid #e2e8f0
+        }
+
+        .sidebar h2 span {
+            font-weight: 400;
+            color: #64748b
+        }
+
+        .sidebar .section {
+            padding: 16px 20px 4px;
+            font-size: 10px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600
+        }
+
+        .sidebar nav {
+            padding: 4px 0
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 8px 20px;
+            color: #64748b;
+            text-decoration: none;
+            font-size: 14px;
+            transition: .2s
+        }
+
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #f1f5f9;
+            color: #0ea5e9
+        }
+
+        .sidebar .login-area {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            border-top: 1px solid #e2e8f0;
+            padding: 8px 0
+        }
+
+        .main {
+            margin-left: 220px;
+            padding: 24px 32px
+        }
+
+        @media(max-width:640px) {
+            .main {
+                margin-left: 0;
+                padding: 64px 16px 16px
+            }
+        }
+
+        .header {
+            margin-bottom: 24px
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #0f172a
+        }
+
+        .header .subtitle {
+            color: #64748b;
+            font-size: 14px;
+            margin-top: 4px
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 24px
+        }
+
+        .card .label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 8px
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 4px
+        }
+
+        .status-badge.ok {
+            background: #dcfce7;
+            color: #166534
+        }
+
+        .status-badge.nok {
+            background: #fee2e2;
+            color: #991b1b
+        }
+
+        .status-badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block
+        }
+
+        .status-badge.ok .dot {
+            background: #16a34a
+        }
+
+        .status-badge.nok .dot {
+            background: #dc2626
+        }
+
+        .table-wrap {
+            overflow-x: auto
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 12px;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: .5px;
+            border-bottom: 1px solid #e2e8f0
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9
+        }
+
+        tr:hover td {
+            background: #f8fafc
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase
+        }
+
+        .tag.anomaly {
+            background: #fee2e2;
+            color: #991b1b
+        }
+
+        .tag.manual {
+            background: #dbeafe;
+            color: #1e40af
+        }
+
+        .tag.system {
+            background: #e2e8f0;
+            color: #475569
+        }
+
+        .tag.scada_offline {
+            background: #fee2e2;
+            color: #991b1b
+        }
+
+        .tag.scada_online {
+            background: #dcfce7;
+            color: #166534
+        }
+
+        .status-icon {
+            font-size: 16px
+        }
+
+        .msg-preview {
+            color: #475569;
+            line-height: 1.5;
+            word-break: break-word
+        }
+
+        .count-badge {
+            font-size: 12px;
+            color: #64748b;
+            margin-left: 8px;
+            font-weight: 400
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #94a3b8;
+            font-size: 14px
+        }
+
+        .empty-state .icon {
+            font-size: 32px;
+            margin-bottom: 8px
+        }
+    </style>
+</head>
+
+<body>
+    <button class="menu-toggle" id="menuBtn"
+        onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+    <aside class="sidebar">
+        <h2>DMC <span>Power Agent</span></h2>
+        <div class="section">Banjaran</div>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/static/anomalies.html">Anomalies</a>
+            <a href="/static/predict.html">Prediction</a>
+            <a href="/static/notifications.html" class="active">Notifications</a>
+            <a href="/static/admin.html" id="adminLink" style="display:none">Admin</a>
+        </nav>
+        <div class="login-area">
+            <a href="#" id="loginToggle" onclick="toggleLogin()">Login</a>
+        </div>
+    </aside>
+    <div class="main">
+        <div class="header">
+            <h1>Banjaran &mdash; Notification Log</h1>
+            <div class="subtitle">Telegram channel status and sent notification history</div>
+        </div>
+
+        <div class="card" style="background:#f0f9ff;border-color:#bae6fd">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+                <div>
+                    <div class="label" style="color:#0369a1">Subscribe to Notifications</div>
+                    <p style="font-size:14px;color:#0c4a6e;line-height:1.6;margin-top:4px">
+                        Receive anomaly alerts on your mobile — join the Telegram channel:
+                    </p>
+                    <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                        <a href="https://t.me/+s4UnLvAsJDY1YTI1" target="_blank" style="font-family:monospace;font-size:14px;font-weight:600;color:#0369a1;background:#e0f2fe;padding:6px 14px;border-radius:6px;text-decoration:none">
+                            t.me/+s4UnLvAsJDY1YTI1
+                        </a>
+                        <span style="font-size:12px;color:#64748b">click to join</span>
+                    </div>
+                </div>
+                <div id="status-badge" class="status-badge" style="flex-shrink:0;margin-top:4px">
+                    <span class="dot"></span>
+                    <span>Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="label">Notification History <span class="count-badge" id="notif-count"></span></div>
+            <div class="table-wrap">
+                <table id="history-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Message</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body"></tbody>
+                </table>
+                <div id="empty-state" class="empty-state" style="display:none">
+                    <div class="icon">📭</div>
+                    <div>No notifications sent yet</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadStatus() {
+            try {
+                const r = await fetch('/api/notify/status');
+                const d = await r.json();
+                const badge = document.getElementById('status-badge');
+                if (d.configured) {
+                    badge.className = 'status-badge ok';
+                    badge.innerHTML = '<span class="dot"></span><span>Configured</span>';
+                } else {
+                    badge.className = 'status-badge nok';
+                    let msg = 'Not configured';
+                    if (!d.bot_token) msg = 'Bot token missing';
+                    else if (!d.chat_id) msg = 'Chat ID missing';
+                    badge.innerHTML = '<span class="dot"></span><span>' + msg + '</span>';
+                }
+            } catch (e) {
+                document.getElementById('status-badge').className = 'status-badge nok';
+                document.getElementById('status-badge').innerHTML = '<span class="dot"></span><span>Error loading status</span>';
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const r = await fetch('/api/notify/history');
+                const d = await r.json();
+                const tbody = document.getElementById('history-body');
+                const empty = document.getElementById('empty-state');
+                const count = document.getElementById('notif-count');
+
+                if (!d.history || d.history.length === 0) {
+                    tbody.innerHTML = '';
+                    empty.style.display = 'block';
+                    count.textContent = '';
+                    return;
+                }
+
+                empty.style.display = 'none';
+                count.textContent = '(' + d.history.length + ')';
+                tbody.innerHTML = d.history.map(function (n) {
+                    var ts = n.timestamp || '';
+                    var time = ts.length > 19 ? ts.slice(0, 19).replace('T', ' ') : ts;
+                    var kind = n.kind || 'unknown';
+                    var msg = n.message || '';
+                    var ok = n.success;
+                    var statusIcon = ok ? '&#9989;' : '&#10060;';
+                    var statusLabel = ok ? 'Sent' : 'Failed';
+                    return '<tr>' +
+                        '<td style="white-space:nowrap;font-family:monospace;font-size:12px">' + time + '</td>' +
+                        '<td><span class="tag ' + kind + '">' + kind + '</span></td>' +
+                        '<td><div class="msg-preview">' + msg + '</div></td>' +
+                        '<td><span title="' + statusLabel + '">' + statusIcon + ' ' + statusLabel + '</span></td>' +
+                        '</tr>';
+                }).join('');
+            } catch (e) {
+                console.error('Failed to load history', e);
+            }
+        }
+
+        loadStatus();
+        loadHistory();
+        setInterval(loadHistory, 10000);
+    </script>
+    <script>
+        function updateSidebarAuth() {
+            var authed = localStorage.getItem('admin_authenticated') === '1';
+            document.getElementById('adminLink').style.display = authed ? 'block' : 'none';
+            document.getElementById('loginToggle').textContent = authed ? 'Logout' : 'Login';
+        }
+        async function toggleLogin() {
+            var authed = localStorage.getItem('admin_authenticated') === '1';
+            if (authed) {
+                localStorage.removeItem('admin_authenticated');
+                updateSidebarAuth();
+                return;
+            }
+            var pass = prompt('Enter admin password:');
+            if (!pass) return;
+            try {
+                var r = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pass })
+                });
+                var d = await r.json();
+                if (d.ok) {
+                    localStorage.setItem('admin_authenticated', '1');
+                    updateSidebarAuth();
+                } else {
+                    alert(d.message || 'Invalid password');
+                }
+            } catch (e) {
+                alert('Login request failed');
+            }
+        }
+        updateSidebarAuth();
+    </script>
+</body>
+</html>

@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMC Power Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b
+        }
+
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 20;
+            background: #0ea5e9;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 18px;
+            cursor: pointer
+        }
+
+        @media(max-width:640px) {
+            .menu-toggle {
+                display: block
+            }
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 220px;
+            height: 100vh;
+            background: #ffffff;
+            padding: 24px 0;
+            z-index: 10;
+            border-right: 1px solid #e2e8f0;
+            transition: transform .3s
+        }
+
+        @media(max-width:640px) {
+            .sidebar {
+                transform: translateX(-100%)
+            }
+
+            .sidebar.open {
+                transform: translateX(0)
+            }
+        }
+
+        .sidebar h2 {
+            color: #0ea5e9;
+            padding: 0 20px 20px;
+            font-size: 18px;
+            border-bottom: 1px solid #e2e8f0
+        }
+
+        .sidebar h2 span {
+            font-weight: 400;
+            color: #64748b
+        }
+
+        .sidebar .section {
+            padding: 16px 20px 4px;
+            font-size: 10px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600
+        }
+
+        .sidebar nav {
+            padding: 4px 0
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 8px 20px;
+            color: #64748b;
+            text-decoration: none;
+            font-size: 14px;
+            transition: .2s
+        }
+
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #f1f5f9;
+            color: #0ea5e9
+        }
+
+        .sidebar .login-area {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            border-top: 1px solid #e2e8f0;
+            padding: 8px 0
+        }
+
+        .main {
+            margin-left: 220px;
+            padding: 24px 32px
+        }
+
+        @media(max-width:640px) {
+            .main {
+                margin-left: 0;
+                padding: 64px 16px 16px
+            }
+        }
+
+        .header {
+            margin-bottom: 24px
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #0f172a
+        }
+
+        .header .subtitle {
+            color: #64748b;
+            font-size: 14px;
+            margin-top: 4px
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0
+        }
+
+        .card .label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 8px
+        }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 8px
+        }
+
+        .settings-row input[type=time] {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: .2s;
+            background: #fff;
+            color: #1e293b
+        }
+
+        .settings-row input[type=time]:focus {
+            border-color: #0ea5e9
+        }
+
+        .settings-row .hint {
+            font-size: 12px;
+            color: #94a3b8
+        }
+
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 14px
+        }
+
+        .toggle-row:last-child {
+            border-bottom: none
+        }
+
+        .toggle-row .toggle-label {
+            color: #1e293b
+        }
+
+        .toggle-row .toggle-desc {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 2px
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+            cursor: pointer
+        }
+
+        .toggle-switch input {
+            display: none
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: #cbd5e1;
+            border-radius: 12px;
+            transition: .2s
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: .2s
+        }
+
+        .toggle-switch input:checked+.toggle-slider {
+            background: #0ea5e9
+        }
+
+        .toggle-switch input:checked+.toggle-slider::before {
+            transform: translateX(20px)
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 24px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: .2s
+        }
+
+        .btn-primary {
+            background: #0ea5e9;
+            color: #fff
+        }
+
+        .btn-primary:hover {
+            background: #0284c7
+        }
+
+        .btn-primary:disabled {
+            opacity: .5;
+            cursor: not-allowed
+        }
+
+        .result-box {
+            margin-top: 16px;
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: none
+        }
+
+        .result-box.success {
+            display: block;
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #86efac
+        }
+
+        .result-box.fail {
+            display: block;
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5
+        }
+
+        .spinner {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, .3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin .6s linear infinite
+        }
+
+        .btn.loading .spinner {
+            display: inline-block
+        }
+
+        .btn.loading .btn-text {
+            display: none
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <button class="menu-toggle"
+        onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+    <aside class="sidebar">
+        <h2>DMC <span>Power Agent</span></h2>
+        <div class="section">Banjaran</div>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/static/anomalies.html">Anomalies</a>
+            <a href="/static/predict.html">Prediction</a>
+            <a href="/static/notifications.html">Notifications</a>
+            <a href="/static/admin.html" class="active" id="adminLink">Admin</a>
+        </nav>
+        <div class="login-area">
+            <a href="#" id="loginToggle" onclick="toggleLogin()">Logout</a>
+        </div>
+    </aside>
+    <div class="main" id="contentArea">
+        <div class="header">
+            <h1>Banjaran &mdash; Admin</h1>
+            <div class="subtitle">System administration and tools</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Telegram Notification</div>
+            <button class="btn btn-primary" id="testBtn" onclick="testNotify()">
+                <span class="btn-text">Test Notification</span>
+                <span class="spinner"></span>
+            </button>
+            <div id="result" class="result-box"></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+            <div class="label">Notification Events</div>
+            <div class="toggle-row">
+                <div><div class="toggle-label">Anomaly Alert</div><div class="toggle-desc">z-score &gt; 3</div></div>
+                <label class="toggle-switch"><input type="checkbox" id="tog_anomaly" onchange="saveToggles()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <div><div class="toggle-label">Daily Summary</div><div class="toggle-desc">scheduled report</div></div>
+                <label class="toggle-switch"><input type="checkbox" id="tog_summary" onchange="saveToggles()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <div><div class="toggle-label">SCADA Offline</div><div class="toggle-desc">fetch failure</div></div>
+                <label class="toggle-switch"><input type="checkbox" id="tog_scada_offline" onchange="saveToggles()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <div><div class="toggle-label">SCADA Restored</div><div class="toggle-desc">back online</div></div>
+                <label class="toggle-switch"><input type="checkbox" id="tog_scada_online" onchange="saveToggles()"><span class="toggle-slider"></span></label>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+            <div class="label">Daily Summary</div>
+            <div class="settings-row">
+                <span style="font-size:14px;color:#475569">Send at:</span>
+                <input type="time" id="summaryTime">
+                <button class="btn btn-primary" onclick="saveSummaryTime()" style="padding:8px 16px;font-size:13px">
+                    Save
+                </button>
+                <span id="timeSaved" style="font-size:12px;color:#16a34a;display:none">Saved</span>
+            </div>
+            <div class="settings-row" style="margin-top:12px">
+                <button class="btn btn-primary" id="summaryBtn" onclick="sendSummary()" style="padding:8px 16px;font-size:13px">
+                    <span class="btn-text">Send Summary Now</span>
+                    <span class="spinner"></span>
+                </button>
+                <span class="hint">manually trigger today's report</span>
+            </div>
+            <div id="summaryResult" class="result-box"></div>
+        </div>
+    </div>
+
+    <script>
+        if (localStorage.getItem('admin_authenticated') !== '1') {
+            location.href = '/';
+        }
+
+        function updateSidebarAuth() {
+            var authed = localStorage.getItem('admin_authenticated') === '1';
+            document.getElementById('loginToggle').textContent = authed ? 'Logout' : 'Login';
+        }
+        async function toggleLogin() {
+            var authed = localStorage.getItem('admin_authenticated') === '1';
+            if (authed) {
+                localStorage.removeItem('admin_authenticated');
+                location.href = '/';
+                return;
+            }
+            var pass = prompt('Enter admin password:');
+            if (!pass) return;
+            try {
+                var r = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pass })
+                });
+                var d = await r.json();
+                if (d.ok) {
+                    localStorage.setItem('admin_authenticated', '1');
+                    updateSidebarAuth();
+                } else {
+                    alert(d.message || 'Invalid password');
+                }
+            } catch (e) {
+                alert('Login request failed');
+            }
+        }
+
+        async function testNotify() {
+            var btn = document.getElementById('testBtn');
+            var result = document.getElementById('result');
+            btn.classList.add('loading');
+            btn.disabled = true;
+            result.className = 'result-box';
+            result.textContent = '';
+
+            try {
+                var r = await fetch('/api/notify/test');
+                var d = await r.json();
+                if (d.status === 'sent') {
+                    result.className = 'result-box success';
+                    result.innerHTML = '&#9989; Notification sent successfully &mdash; check your Telegram channel';
+                } else {
+                    result.className = 'result-box fail';
+                    result.innerHTML = '&#10060; ' + (d.message || 'Failed to send notification');
+                }
+            } catch (e) {
+                result.className = 'result-box fail';
+                result.innerHTML = '&#10060; Request failed: ' + e.message;
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        }
+
+        fetch('/api/notify/status').then(function (r) { return r.json(); }).then(function (d) {
+            document.getElementById('testBtn').disabled = !d.configured;
+        }).catch(function () {});
+
+        function setToggle(id, val) {
+            document.getElementById(id).checked = val === '1';
+        }
+
+        async function loadSettings() {
+            try {
+                var r = await fetch('/api/admin/settings');
+                var d = await r.json();
+                document.getElementById('summaryTime').value = d.daily_summary_time;
+                setToggle('tog_anomaly', d.notify_anomaly_enabled);
+                setToggle('tog_summary', d.notify_summary_enabled);
+                setToggle('tog_scada_offline', d.notify_scada_offline_enabled);
+                setToggle('tog_scada_online', d.notify_scada_online_enabled);
+            } catch (e) { console.error(e); }
+        }
+
+        async function saveToggles() {
+            var body = {
+                notify_anomaly_enabled: document.getElementById('tog_anomaly').checked ? '1' : '0',
+                notify_summary_enabled: document.getElementById('tog_summary').checked ? '1' : '0',
+                notify_scada_offline_enabled: document.getElementById('tog_scada_offline').checked ? '1' : '0',
+                notify_scada_online_enabled: document.getElementById('tog_scada_online').checked ? '1' : '0',
+            };
+            try {
+                await fetch('/api/admin/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function saveSummaryTime() {
+            var val = document.getElementById('summaryTime').value;
+            if (!val) return;
+            try {
+                await fetch('/api/admin/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ daily_summary_time: val })
+                });
+                var saved = document.getElementById('timeSaved');
+                saved.style.display = 'inline';
+                setTimeout(function () { saved.style.display = 'none'; }, 2000);
+            } catch (e) { alert('Failed to save'); }
+        }
+
+        async function sendSummary() {
+            var btn = document.getElementById('summaryBtn');
+            var result = document.getElementById('summaryResult');
+            btn.classList.add('loading');
+            btn.disabled = true;
+            result.className = 'result-box';
+            result.textContent = '';
+            try {
+                var r = await fetch('/api/notify/summary');
+                var d = await r.json();
+                if (d.status === 'sent') {
+                    result.className = 'result-box success';
+                    result.innerHTML = '&#9989; Summary sent to Telegram';
+                } else {
+                    result.className = 'result-box fail';
+                    result.innerHTML = '&#10060; ' + (d.message || 'Failed');
+                }
+            } catch (e) {
+                result.className = 'result-box fail';
+                result.innerHTML = '&#10060; ' + e.message;
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        }
+
+        loadSettings();
+        updateSidebarAuth();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMC Power Agent</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b
+        }
+
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 20;
+            background: #0ea5e9;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 18px;
+            cursor: pointer
+        }
+
+        @media(max-width:640px) {
+            .menu-toggle {
+                display: block
+            }
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 220px;
+            height: 100vh;
+            background: #ffffff;
+            padding: 24px 0;
+            z-index: 10;
+            border-right: 1px solid #e2e8f0;
+            transition: transform .3s
+        }
+
+        @media(max-width:640px) {
+            .sidebar {
+                transform: translateX(-100%)
+            }
+
+            .sidebar.open {
+                transform: translateX(0)
+            }
+        }
+
+        .sidebar h2 {
+            color: #0ea5e9;
+            padding: 0 20px 20px;
+            font-size: 18px;
+            border-bottom: 1px solid #e2e8f0
+        }
+
+        .sidebar h2 span {
+            font-weight: 400;
+            color: #64748b
+        }
+
+        .sidebar .section {
+            padding: 16px 20px 4px;
+            font-size: 10px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600
+        }
+
+        .sidebar nav {
+            padding: 4px 0
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 8px 20px;
+            color: #64748b;
+            text-decoration: none;
+            font-size: 14px;
+            transition: .2s
+        }
+
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #f1f5f9;
+            color: #0ea5e9
+        }
+
+        .sidebar .login-area {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            border-top: 1px solid #e2e8f0;
+            padding: 8px 0
+        }
+
+        .main {
+            margin-left: 220px;
+            padding: 24px 32px
+        }
+
+        .header {
+            margin-bottom: 24px
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #0f172a
+        }
+
+        .header .subtitle {
+            color: #64748b;
+            font-size: 14px;
+            margin-top: 4px
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            position: relative;
+            overflow: hidden
+        }
+
+        .card .label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: .5px
+        }
+
+        .card .value {
+            font-size: 26px;
+            font-weight: 700;
+            margin-top: 4px;
+            color: #0f172a
+        }
+
+        .card .sub {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 2px
+        }
+
+        .card .mini-chart {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            opacity: .3
+        }
+        .trend-body {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 4px
+        }
+        .trend-icon {
+            font-size: 48px;
+            line-height: 1
+        }
+        .trend-icon.up {
+            color: #dc2626
+        }
+        .trend-icon.down {
+            color: #16a34a
+        }
+        .trend-icon.stable {
+            color: #64748b
+        }
+
+        .card.danger .value {
+            color: #ef4444
+        }
+
+        .card.danger {
+            border-color: #ef4444
+        }
+
+        .card.success {
+            border-left: 4px solid #22c55e
+        }
+
+        .card.warning {
+            border-left: 4px solid #f59e0b
+        }
+
+        .chart-box {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 16px 20px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 16px
+        }
+
+        .chart-box h3 {
+            margin-bottom: 8px;
+            color: #475569;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            font-weight: 600
+        }
+
+        .chart-box canvas {
+            width: 100% !important
+        }
+
+        .chart-stats {
+            display: flex;
+            gap: 18px;
+            margin-bottom: 50px;
+            font-size: 14px;
+            color: #64748b;
+            flex-wrap: wrap
+        }
+        .chart-stats .stat {
+            display: flex;
+            align-items: baseline;
+            gap: 4px
+        }
+        .chart-stats .stat .num {
+            font-weight: 700;
+            color: #0f172a;
+            font-size: 16px
+        }
+        .chart-stats .stat .num.green {
+            color: #16a34a
+        }
+        .chart-stats .stat .num.red {
+            color: #dc2626
+        }
+
+        .chart-box .hint {
+            color: #94a3b8;
+            font-size: 11px;
+            margin-top: -8px;
+            margin-bottom: 12px
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0
+        }
+
+        th,
+        td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13px
+        }
+
+        th {
+            background: #f8fafc;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            font-size: 11px
+        }
+
+        td {
+            color: #334155
+        }
+
+        tr:hover td {
+            background: #f8fafc
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600
+        }
+
+        .badge.up {
+            background: #22c55e15;
+            color: #16a34a
+        }
+
+        .badge.down {
+            background: #ef444415;
+            color: #dc2626
+        }
+
+        .badge.stable {
+            background: #e2e8f0;
+            color: #64748b
+        }
+
+        .grid-2,
+        .grid-3,
+        .grid-4 {
+            display: grid;
+            gap: 16px
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, 1fr)
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr)
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(4, 1fr)
+        }
+
+        @media(max-width:1100px) {
+            .grid-3 {
+                grid-template-columns: repeat(2, 1fr)
+            }
+        }
+
+        @media(max-width:900px) {
+            .grid-2 {
+                grid-template-columns: 1fr
+            }
+
+            .grid-3 {
+                grid-template-columns: 1fr
+            }
+
+            .grid-4 {
+                grid-template-columns: 1fr 1fr
+            }
+        }
+
+        @media(max-width:640px) {
+            .sidebar {
+                display: none
+            }
+
+            .main {
+                margin-left: 0;
+                padding: 16px
+            }
+
+            .grid-4 {
+                grid-template-columns: 1fr
+            }
+
+            .cards {
+                grid-template-columns: repeat(2, 1fr)
+            }
+        }
+
+        @media(max-width:500px) {
+            .cards {
+                grid-template-columns: 1fr
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <button class="menu-toggle" id="menuBtn"
+        onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+    <aside class="sidebar">
+        <h2>DMC <span>Power Agent</span></h2>
+        <div class="section">Banjaran</div>
+        <nav>
+            <a href="/" class="active">Dashboard</a>
+            <a href="/static/anomalies.html">Anomalies</a>
+            <a href="/static/predict.html">Prediction</a>
+            <a href="/static/notifications.html">Notifications</a>
+            <a href="/static/admin.html" id="adminLink" style="display:none">Admin</a>
+        </nav>
+        <div class="login-area">
+            <a href="#" id="loginToggle" onclick="toggleLogin()">Login</a>
+        </div>
+    </aside>
+    <div class="main">
+        <div class="header">
+            <h1>Banjaran &mdash; Power Monitoring</h1>
+            <div class="subtitle">Last update: <span id="last-update">--</span> &middot; Auto-refresh every 60s</div>
+        </div>
+
+        <div class="cards">
+            <div class="card success" title="Most recent power reading from the SCADA system — live kW load">
+                <div class="label">Current Load</div>
+                <div class="value" id="cur-load">--</div>
+                <div class="sub">kW</div>
+                <canvas class="mini-chart" id="miniTotal"></canvas>
+            </div>
+            <div class="card" title="Mean power consumption across all historical data in the current view">
+                <div class="label">Average (history)</div>
+                <div class="value" id="avg-load">--</div>
+                <div class="sub">kW</div>
+            </div>
+            <div class="card warning" title="Highest power reading recorded in the historical data">
+                <div class="label">Peak (history)</div>
+                <div class="value" id="max-load">--</div>
+                <div class="sub">kW at <span id="max-time">--</span></div>
+            </div>
+            <div class="card" id="trend-card"
+                title="Rate of change over the last hour — positive means load is rising, negative means falling">
+                <div class="label">Trend (1h)</div>
+                <div class="trend-body">
+                    <div class="value" id="trend-val">--</div>
+                    <span class="trend-icon" id="trend-icon">→</span>
+                </div>
+                <div class="sub"><span class="badge" id="trend-badge">stable</span> kW/h</div>
+            </div>
+        </div>
+
+        <div class="grid-3">
+            <div class="chart-box">
+                <h3>Section Distribution</h3><canvas id="secChart" height="200"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Load Breakdown &mdash; Live vs Avg vs Max</h3><canvas id="radarChart" height="200"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Total Load Trend</h3>
+                <div class="chart-stats" id="totalStats"></div>
+                <canvas id="totalChart" height="260"></canvas>
+            </div>
+        </div>
+
+        <div class="grid-3">
+            <div class="chart-box">
+                <h3>Section Loads vs Average</h3><canvas id="barChart" height="200"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Spinning 5 Trend</h3><canvas id="spin5Chart" height="200"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Spinning 6 Trend</h3><canvas id="spin6Chart" height="200"></canvas>
+            </div>
+        </div>
+
+        <div class="grid-3">
+            <div class="chart-box">
+                <h3>Compressor Trend</h3><canvas id="compChart" height="200"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Weaving Trend</h3><canvas id="weaveChart" height="200"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Spinning 5 &mdash; Areas</h3><canvas id="spin5Breakdown" height="200"></canvas>
+            </div>
+        </div>
+
+        <div class="grid-3">
+            <div class="chart-box">
+                <h3>Spinning 6 &mdash; Areas</h3><canvas id="spin6Breakdown" height="200"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Compressor &mdash; Units</h3><canvas id="compBreakdown" height="200"></canvas>
+            </div>
+        </div>
+        <div class="chart-box">
+            <h3>Section Loads Summary</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Section</th>
+                        <th>Current (kW)</th>
+                        <th>Average (kW)</th>
+                        <th>Max (kW)</th>
+                        <th>Std Dev</th>
+                        <th>% of Total</th>
+                        <th>Utilization</th>
+                    </tr>
+                </thead>
+                <tbody id="sec-table"></tbody>
+            </table>
+        </div>
+
+        <script>
+            const API = '/api';
+            const SECTIONS = [
+                { key: 'KW_TOTAL_SPINNING5', name: 'Spinning 5', color: '#38bdf8' },
+                { key: 'KW_TOTAL_SPINNING6', name: 'Spinning 6', color: '#22c55e' },
+                { key: 'KW_TOTAL_COMPRESSOR', name: 'Compressor', color: '#f59e0b' },
+                { key: 'KW_TOTAL_WEAVING', name: 'Weaving', color: '#ef4444' },
+                { key: 'KW_TOTAL_PP2G', name: 'PP2G', color: '#a855f7' },
+            ];
+
+            let charts = {};
+
+            const names = ['Sp 5', 'Sp 6', 'Comp', 'Weave', 'PP2G'];
+            const colors = ['#38bdf8','#22c55e','#f59e0b','#ef4444','#a855f7'];
+            const centerText = {
+                id: 'centerText',
+                beforeDraw(chart) {
+                    if (chart.config.type !== 'doughnut') return;
+                    const { width, height, ctx } = chart;
+                    ctx.save();
+                    const data = chart.data.datasets[0].data;
+                    const total = data.reduce((a, b) => a + b, 0);
+                    const cx = width / 2;
+                    const cy = height / 2;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const startY = cy - ((names.length - 1) * 28) / 2;
+                    for (let i = 0; i < names.length; i++) {
+                        const pct = total ? ((data[i] / total) * 100).toFixed(0) : '0';
+                        const y = startY + i * 28;
+                        ctx.font = 'bold 20px sans-serif';
+                        ctx.fillStyle = colors[i];
+                        ctx.fillText(pct + '%', cx + 20, y);
+                        ctx.font = '16px sans-serif';
+                        ctx.fillStyle = '#64748b';
+                        ctx.textAlign = 'right';
+                        ctx.fillText(names[i], cx - 8, y);
+                        ctx.textAlign = 'center';
+                    }
+                    ctx.restore();
+                }
+            };
+            Chart.register(centerText);
+
+            function makeChart(id, type, data, opts, plug) {
+                const prev = charts[id];
+                if (prev) {
+                    prev.data.labels = data.labels;
+                    data.datasets.forEach((ds, i) => {
+                        if (prev.data.datasets[i]) prev.data.datasets[i].data = ds.data;
+                    });
+                    prev.update('none');
+                    return prev;
+                }
+                const ctx = document.getElementById(id).getContext('2d');
+                charts[id] = new Chart(ctx, { type, data, options: { responsive: true, maintainAspectRatio: true, ...opts }, plugins: plug || [] });
+                return charts[id];
+            }
+
+            async function loadData() {
+                try {
+                    const [s, t, h, r] = await Promise.all([
+                        fetch(API + '/summary').then(r => r.json()),
+                        fetch(API + '/trend').then(r => r.json()),
+                        fetch(API + '/history?limit=120').then(r => r.json()),
+                        fetch(API).then(r => r.json()),
+                    ]);
+                    document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+                    document.getElementById('cur-load').textContent = s.current?.KW_TOTAL ?? '--';
+                    document.getElementById('avg-load').textContent = s.avg?.KW_TOTAL ?? '--';
+                    document.getElementById('max-load').textContent = s.max?.KW_TOTAL ?? '--';
+                    document.getElementById('trend-val').textContent = t.trend_kw_per_hour ?? '--';
+                    const badge = document.getElementById('trend-badge');
+                    const dir = t.direction || 'stable';
+                    badge.textContent = dir;
+                    badge.className = 'badge ' + dir;
+                    document.getElementById('trend-card').className = 'card ' + (dir === 'up' ? 'danger' : dir === 'down' ? 'success' : '');
+                    const icon = document.getElementById('trend-icon');
+                    icon.textContent = dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→';
+                    icon.className = 'trend-icon ' + dir;
+
+                    const total = s.current?.KW_TOTAL || 1;
+                    const secRows = SECTIONS.map(sec => {
+                        const cur = s.current?.[sec.key] ?? 0;
+                        const avg = s.avg?.[sec.key] ?? 0;
+                        const max = s.max?.[sec.key] ?? 0;
+                        const std = s.std?.[sec.key] ?? 0;
+                        const pctVal = ((cur / total) * 100).toFixed(1);
+                        const util = max > 0 ? ((cur / max) * 100).toFixed(1) : '--';
+                        return `<tr><td>${sec.name}</td><td>${cur.toFixed(1)}</td><td>${avg.toFixed(1)}</td><td>${max.toFixed(1)}</td><td>${std.toFixed(1)}</td><td>${pctVal}%</td><td>${util}%</td></tr>`;
+                    }).join('');
+                    document.getElementById('sec-table').innerHTML = secRows +
+                        `<tr style="font-weight:700;border-top:2px solid #38bdf8"><td>TOTAL</td><td>${s.current?.KW_TOTAL ?? '--'}</td><td>${s.avg?.KW_TOTAL ?? '--'}</td><td>${s.max?.KW_TOTAL ?? '--'}</td><td>${s.std?.KW_TOTAL ?? '--'}</td><td>100%</td><td>--</td></tr>`;
+
+                    if (h.data?.length) {
+                        const labels = h.data.map(d => new Date(d.timestamp).toLocaleTimeString());
+                        const vals = h.data.map(d => d.KW_TOTAL);
+                        const n = vals.length;
+                        const min = Math.min(...vals);
+                        const max = Math.max(...vals);
+                        const avg = vals.reduce((a, b) => a + b, 0) / n;
+                        const std = Math.sqrt(vals.reduce((s, v) => s + (v - avg) ** 2, 0) / n);
+                        const cur = vals[n - 1];
+                        const first = vals[0];
+                        const delta = cur - first;
+                        const pctCh = first ? ((delta / first) * 100).toFixed(1) : '0';
+                        const range = max - min;
+                        const vol = avg ? ((range / avg) * 100).toFixed(1) : '0';
+                        const peak = h.data.reduce((a, b) => a.KW_TOTAL > b.KW_TOTAL ? a : b);
+                        document.getElementById('max-time').textContent = new Date(peak.timestamp).toLocaleTimeString();
+
+                        document.getElementById('totalStats').innerHTML =
+                            `<span class="stat" title="Lowest kW reading in this window">Min <span class="num">${min.toFixed(1)}</span></span>` +
+                            `<span class="stat" title="Highest kW reading in this window">Max <span class="num">${max.toFixed(1)}</span></span>` +
+                            `<span class="stat" title="Mean kW across all ${n} readings">Avg <span class="num">${avg.toFixed(1)}</span></span>` +
+                            `<span class="stat" title="Standard deviation — how much readings vary from the average">Std Dev <span class="num">${std.toFixed(1)}</span></span>` +
+                            `<span class="stat" title="Min–max range and volatility as % of average">Range <span class="num">${range.toFixed(1)} (${vol}%)</span></span>` +
+                            `<span class="stat" title="Change from first to last reading in this window">Δ <span class="num ${delta >= 0 ? 'green' : 'red'}">${delta >= 0 ? '+' : ''}${delta.toFixed(1)} (${pctCh}%)</span></span>`;
+
+                        makeChart('totalChart', 'line', {
+                            labels, datasets: [{ label: 'kW', data: vals, borderColor: '#38bdf8', backgroundColor: '#38bdf815', fill: true, tension: .3, pointRadius: 2, pointHitRadius: 20, pointHoverRadius: 6 }]
+                        }, { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b', maxTicksLimit: 8, font: { size: 9 } } }, y: { title: { display: true, text: 'kW', color: '#94a3b8', font: { size: 10 } }, ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: '#e2e8f0' } } } });
+
+                        const miniData = vals.slice(-30);
+                        makeChart('miniTotal', 'line', {
+                            labels: miniData.map((_, i) => i), datasets: [{ data: miniData, borderColor: '#22c55e', borderWidth: 1, pointRadius: 0, fill: false }]
+                        }, { plugins: { legend: { display: false, }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false, grid: { display: false } } }, elements: { point: { radius: 0 } } }, []);
+
+                        const secCurrent = SECTIONS.map(sec => ({ name: sec.name, val: s.current?.[sec.key] ?? 0, color: sec.color }));
+                        const secAvg = SECTIONS.map(sec => ({ name: sec.name, val: s.avg?.[sec.key] ?? 0, color: sec.color }));
+                        const secMax = SECTIONS.map(sec => ({ name: sec.name, val: s.max?.[sec.key] ?? 0, color: sec.color }));
+
+                        const secTotal = secCurrent.reduce((a, b) => a + b.val, 0);
+                        makeChart('secChart', 'doughnut', {
+                            labels: secCurrent.map(s => s.name + ' (' + (secTotal ? ((s.val / secTotal) * 100).toFixed(0) : 0) + '%)'), datasets: [{ data: secCurrent.map(s => s.val), backgroundColor: SECTIONS.map(s => s.color) }]
+                        }, { plugins: { legend: { display: false } }, cutout: '70%' }, [centerText]);
+
+                        makeChart('barChart', 'bar', {
+                            labels: SECTIONS.map(s => s.name), datasets: [
+                                { label: 'Current', data: secCurrent.map(s => s.val), backgroundColor: SECTIONS.map(s => s.color + 'cc'), borderRadius: 4 },
+                                { label: 'Average', data: secAvg.map(s => s.val), backgroundColor: '#64748b80', borderRadius: 4 }]
+                        }, { plugins: { legend: { labels: { color: '#94a3b8', boxWidth: 12, font: { size: 10 } } } }, scales: { x: { ticks: { color: '#64748b', font: { size: 10 } } }, y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#e2e8f0' } } } }, []);
+
+                        makeChart('radarChart', 'radar', {
+                            labels: SECTIONS.map(s => s.name), datasets: [
+                                { label: 'Live', data: secCurrent.map(s => s.val), borderColor: '#38bdf8', backgroundColor: '#38bdf820', pointBackgroundColor: '#38bdf8' },
+                                { label: 'Average', data: secAvg.map(s => s.val), borderColor: '#64748b', backgroundColor: '#64748b20', pointBackgroundColor: '#64748b' },
+                                { label: 'Max', data: secMax.map(s => s.val), borderColor: '#f59e0b', backgroundColor: '#f59e0b20', pointBackgroundColor: '#f59e0b' }]
+                        }, { plugins: { legend: { labels: { color: '#94a3b8', boxWidth: 12, font: { size: 10 } } } }, scales: { r: { ticks: { color: '#64748b', font: { size: 9 }, backdropColor: 'transparent' }, grid: { color: '#e2e8f0' } } } }, []);
+
+                        const secKeys = ['KW_TOTAL_SPINNING5', 'KW_TOTAL_SPINNING6', 'KW_TOTAL_COMPRESSOR', 'KW_TOTAL_WEAVING'];
+                        const secColors = ['#38bdf8', '#22c55e', '#f59e0b', '#ef4444'];
+                        const secNames = ['Spinning 5', 'Spinning 6', 'Compressor', 'Weaving'];
+                        const chartIds = ['spin5Chart', 'spin6Chart', 'compChart', 'weaveChart'];
+                        secKeys.forEach((key, i) => {
+                            if (!h.data?.[0]?.[key]) return;
+                            const d = h.data.map(r => r[key] || 0);
+                            makeChart(chartIds[i], 'line', {
+                                labels: h.data.map(r => new Date(r.timestamp).toLocaleTimeString()), datasets: [{ label: secNames[i], data: d, borderColor: secColors[i], backgroundColor: secColors[i] + '15', fill: true, tension: .3, pointRadius: 1 }]
+                            }, { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b', maxTicksLimit: 6, font: { size: 9 } } }, y: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: '#e2e8f0' } } } }, []);
+                        });
+                        // Spinning 5 areas
+                        const s5Areas = ['KW_BP5A', 'KW_BP5B', 'KW_RF5A', 'KW_RF5B', 'KW_WINDING5'];
+                        const s5Labels = ['BP5A', 'BP5B', 'RF5A', 'RF5B', 'WINDING5'];
+                        const s5Colors = ['#38bdf8', '#7dd3fc', '#0ea5e9', '#0284c7', '#0369a1'];
+                        if (h.data?.[0]?.['KW_BP5A']) {
+                            const last = h.data[h.data.length - 1];
+                            makeChart('spin5Breakdown', 'bar', {
+                                labels: s5Labels, datasets: [{ label: 'kW', data: s5Areas.map(k => +(last[k] || 0)), backgroundColor: s5Colors, borderRadius: 4 }]
+                            }, { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b', font: { size: 10 } } }, y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#e2e8f0' } } } }, []);
+                        }
+                        // Spinning 6 areas
+                        const s6Areas = ['KW_BP6B', 'KW_MVS6B', 'KW_BP6A', 'KW_RSF1_6A', 'KW_RSF2_6A', 'KW_WINDING 6A', 'KW_AC2_6A'];
+                        const s6Labels = ['BP6B', 'MVS6B', 'BP6A', 'RSF1_6A', 'RSF2_6A', 'WINDING 6A', 'AC2_6A'];
+                        const s6Colors = ['#22c55e', '#4ade80', '#16a34a', '#15803d', '#166534', '#14532d', '#86efac'];
+                        if (h.data?.[0]?.['KW_BP6B']) {
+                            const last = h.data[h.data.length - 1];
+                            makeChart('spin6Breakdown', 'bar', {
+                                labels: s6Labels, datasets: [{ label: 'kW', data: s6Areas.map(k => +(last[k] || 0)), backgroundColor: s6Colors, borderRadius: 4 }]
+                            }, { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b', font: { size: 10 } } }, y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#e2e8f0' } } } }, []);
+                        }
+                        // Compressor units
+                        const cAreas = ['KW_LVMDP_1_COMPRESSOR', 'KW_LVMDP_2_COMPRESSOR', 'KW_LVMDP_3_COMPRESSOR'];
+                        const cLabels = ['LVMDP 1', 'LVMDP 2', 'LVMDP 3'];
+                        const cColors = ['#f59e0b', '#fbbf24', '#d97706'];
+                        if (h.data?.[0]?.['KW_LVMDP_1_COMPRESSOR']) {
+                            const last = h.data[h.data.length - 1];
+                            makeChart('compBreakdown', 'bar', {
+                                labels: cLabels, datasets: [{ label: 'kW', data: cAreas.map(k => +(last[k] || 0)), backgroundColor: cColors, borderRadius: 4 }]
+                            }, { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b', font: { size: 10 } } }, y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#e2e8f0' } } } }, []);
+                        }
+                    } // endif h.data
+                } catch (e) { console.error(e); }
+            }
+            setTimeout(loadData, 100);
+            setInterval(loadData, 60000);
+        </script>
+        <script>
+            function updateSidebarAuth() {
+                var authed = localStorage.getItem('admin_authenticated') === '1';
+                document.getElementById('adminLink').style.display = authed ? 'block' : 'none';
+                document.getElementById('loginToggle').textContent = authed ? 'Logout' : 'Login';
+            }
+            async function toggleLogin() {
+                var authed = localStorage.getItem('admin_authenticated') === '1';
+                if (authed) {
+                    localStorage.removeItem('admin_authenticated');
+                    updateSidebarAuth();
+                    return;
+                }
+                var pass = prompt('Enter admin password:');
+                if (!pass) return;
+                try {
+                    var r = await fetch('/api/admin/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: pass })
+                    });
+                    var d = await r.json();
+                    if (d.ok) {
+                        localStorage.setItem('admin_authenticated', '1');
+                        updateSidebarAuth();
+                    } else {
+                        alert(d.message || 'Invalid password');
+                    }
+                } catch (e) {
+                    alert('Login request failed');
+                }
+            }
+            updateSidebarAuth();
+        </script>
+</body>
+
+</html>

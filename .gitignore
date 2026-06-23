@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Database
+power_agent/data/history.db
+
+# Secrets
+power_agent/secrets.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
