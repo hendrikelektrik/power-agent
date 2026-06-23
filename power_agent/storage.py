@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import pandas as pd
 from typing import Dict, Optional, List
@@ -5,6 +6,7 @@ from power_agent.config import CONFIG
 
 
 def get_connection() -> sqlite3.Connection:
+    os.makedirs(os.path.dirname(CONFIG.db_path), exist_ok=True)
     conn = sqlite3.connect(CONFIG.db_path)
     conn.execute("PRAGMA journal_mode=WAL")
     return conn

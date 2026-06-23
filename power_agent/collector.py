@@ -78,7 +78,6 @@ def collect_and_store(plant_id: str = "mmBanjaran"):
             send_telegram(
                 f"🔴 <b>DMC Power Agent — SCADA Offline</b>\n"
                 f"Plant: {plant_id}\n"
-                f"Error: {e}\n"
                 f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                 kind="scada_offline",
             )

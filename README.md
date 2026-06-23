@@ -7,15 +7,29 @@ Industrial power consumption monitoring, anomaly detection, and forecasting syst
 ```bash
 git clone <repo>
 cd boring5
+
+# Windows
 python -m venv .venv
-# activate venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy power_agent\secrets.example.json power_agent\secrets.json
+
+# Linux
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 cp power_agent/secrets.example.json power_agent/secrets.json
-# edit secrets.json with your bot token, chat ID, password, SCADA URL
+```
+
+Edit `power_agent/secrets.json` with your values, then run:
+
+```bash
 python -m power_agent all       # collector + API server
 python -m power_agent api       # API only (port 8765)
 python -m power_agent collect   # collector only
 ```
+
+Open http://localhost:8765
 
 ## Features
 
