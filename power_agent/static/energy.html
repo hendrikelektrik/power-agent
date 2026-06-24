@@ -454,10 +454,18 @@
                 } else {
                     wowHtml = '<span style="color:#94a3b8">— no data</span>';
                 }
+                var statusHtml = '';
+                if (sh.status === 'partial') {
+                    statusHtml = '<span style="font-size:10px;background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:8px;font-weight:600">partial</span>';
+                } else if (sh.status === 'pending') {
+                    statusHtml = '<span style="font-size:10px;background:#f1f5f9;color:#94a3b8;padding:2px 8px;border-radius:8px;font-weight:600">pending</span>';
+                }
                 return '<div class="' + cls + '">' +
                     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
                     '<div class="shift-label">' + sh.label + '</div>' +
+                    '<div style="display:flex;align-items:center;gap:6px">' +
                     '<span style="font-size:10px;color:#94a3b8;font-family:monospace">' + data.date + '</span>' +
+                    statusHtml +
                     '</div>' +
                     '<div class="kwh-value">' + sh.total_kwh.toLocaleString() + '<span class="kwh-unit">kWh</span></div>' +
                     (data.show_cost ? '<div class="kwh-value" style="font-size:18px;margin-top:-4px">Rp ' + sh.total_cost.toLocaleString() + '</div>' : '') +
