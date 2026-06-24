@@ -296,6 +296,7 @@
             <a href="/static/anomalies.html">Anomalies</a>
             <a href="/static/predict.html">Prediction</a>
             <a href="/static/notifications.html" class="active">Notifications</a>
+            <a href="/static/bot.html">Telegram Bot</a>
             <a href="/static/admin.html" id="adminLink" style="display:none">Admin</a>
         </nav>
         <div class="login-area">
@@ -331,6 +332,16 @@
 
         <div class="card">
             <div class="label">Notification History <span class="count-badge" id="notif-count"></span></div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+                <label style="font-size:11px;color:#64748b">From:
+                    <input type="date" id="filter-from" style="margin-left:4px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px">
+                </label>
+                <label style="font-size:11px;color:#64748b">To:
+                    <input type="date" id="filter-to" style="margin-left:4px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px">
+                </label>
+                <button onclick="applyFilter()" style="background:#0ea5e9;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:12px;cursor:pointer">Filter</button>
+                <button onclick="clearFilter()" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:5px 14px;font-size:12px;color:#64748b;cursor:pointer">Clear</button>
+            </div>
             <div class="table-wrap">
                 <table id="history-table">
                     <thead>
@@ -347,6 +358,10 @@
                     <div class="icon">📭</div>
                     <div>No notifications sent yet</div>
                 </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 0">
+                <span style="color:#94a3b8;font-size:12px" id="showing-count"></span>
+                <button id="load-more-btn" onclick="loadMore()" style="background:none;border:1px solid #e2e8f0;border-radius:8px;padding:6px 16px;color:#0ea5e9;font-size:12px;cursor:pointer;display:none">Load More</button>
             </div>
         </div>
     </div>
@@ -373,23 +388,53 @@
             }
         }
 
+        var notifLimit = 50;
+
+        function getFilterParams() {
+            var from = document.getElementById('filter-from').value;
+            var to = document.getElementById('filter-to').value;
+            var params = '?limit=' + notifLimit;
+            if (from) params += '&start_date=' + from;
+            if (to) params += '&end_date=' + to;
+            return params;
+        }
+
+        function applyFilter() {
+            notifLimit = 50;
+            loadHistory();
+        }
+
+        function clearFilter() {
+            document.getElementById('filter-from').value = '';
+            document.getElementById('filter-to').value = '';
+            notifLimit = 50;
+            loadHistory();
+        }
+
         async function loadHistory() {
             try {
-                const r = await fetch('/api/notify/history');
+                const r = await fetch('/api/notify/history' + getFilterParams());
                 const d = await r.json();
                 const tbody = document.getElementById('history-body');
                 const empty = document.getElementById('empty-state');
                 const count = document.getElementById('notif-count');
+                const showing = document.getElementById('showing-count');
+                const btn = document.getElementById('load-more-btn');
 
                 if (!d.history || d.history.length === 0) {
                     tbody.innerHTML = '';
                     empty.style.display = 'block';
                     count.textContent = '';
+                    showing.textContent = '';
+                    btn.style.display = 'none';
                     return;
                 }
 
                 empty.style.display = 'none';
                 count.textContent = '(' + d.history.length + ')';
+                showing.textContent = 'Showing ' + d.history.length + ' of ' + (d.total || d.history.length);
+                btn.style.display = d.history.length >= (d.total || d.history.length) ? 'none' : 'block';
+
                 tbody.innerHTML = d.history.map(function (n) {
                     var ts = n.timestamp || '';
                     var time = ts.length > 19 ? ts.slice(0, 19).replace('T', ' ') : ts;
@@ -410,9 +455,20 @@
             }
         }
 
+        function loadMore() {
+            notifLimit += 50;
+            loadHistory();
+        }
+
         loadStatus();
         loadHistory();
         setInterval(loadHistory, 10000);
+
+        (function setDefaultDates() {
+            var today = new Date().toISOString().slice(0, 10);
+            document.getElementById('filter-from').value = today;
+            document.getElementById('filter-to').value = today;
+        })();
     </script>
     <script>
         function updateSidebarAuth() {

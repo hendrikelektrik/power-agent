@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMC Power Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b
+        }
+
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 20;
+            background: #0ea5e9;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 18px;
+            cursor: pointer
+        }
+
+        @media(max-width:640px) {
+            .menu-toggle {
+                display: block
+            }
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 220px;
+            height: 100vh;
+            background: #ffffff;
+            padding: 24px 0;
+            z-index: 10;
+            border-right: 1px solid #e2e8f0;
+            transition: transform .3s
+        }
+
+        @media(max-width:640px) {
+            .sidebar {
+                transform: translateX(-100%)
+            }
+
+            .sidebar.open {
+                transform: translateX(0)
+            }
+        }
+
+        .sidebar h2 {
+            color: #0ea5e9;
+            padding: 0 20px 20px;
+            font-size: 18px;
+            border-bottom: 1px solid #e2e8f0
+        }
+
+        .sidebar h2 span {
+            font-weight: 400;
+            color: #64748b
+        }
+
+        .sidebar .section {
+            padding: 16px 20px 4px;
+            font-size: 10px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600
+        }
+
+        .sidebar nav {
+            padding: 4px 0
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 8px 20px;
+            color: #64748b;
+            text-decoration: none;
+            font-size: 14px;
+            transition: .2s
+        }
+
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #f1f5f9;
+            color: #0ea5e9
+        }
+
+        .sidebar .login-area {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            border-top: 1px solid #e2e8f0;
+            padding: 8px 0
+        }
+
+        .main {
+            margin-left: 220px;
+            padding: 24px 32px
+        }
+
+        @media(max-width:640px) {
+            .main {
+                margin-left: 0;
+                padding: 64px 16px 16px
+            }
+        }
+
+        .header {
+            margin-bottom: 24px
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #0f172a
+        }
+
+        .header .subtitle {
+            color: #64748b;
+            font-size: 14px;
+            margin-top: 4px
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 16px
+        }
+
+        .card .label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 8px
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 4px
+        }
+
+        .status-badge.ok {
+            background: #dcfce7;
+            color: #166534
+        }
+
+        .status-badge.nok {
+            background: #fee2e2;
+            color: #991b1b
+        }
+
+        .status-badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block
+        }
+
+        .status-badge.ok .dot {
+            background: #16a34a
+        }
+
+        .status-badge.nok .dot {
+            background: #dc2626
+        }
+
+        .cmd-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 4px
+        }
+
+        .cmd-item {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 14px 16px;
+            border: 1px solid #e2e8f0
+        }
+
+        .cmd-item .cmd {
+            font-family: monospace;
+            font-weight: 700;
+            color: #0ea5e9;
+            font-size: 14px
+        }
+
+        .cmd-item .desc {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px
+        }
+
+        .bot-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #0ea5e9;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: 8px
+        }
+
+        .bot-link:hover {
+            background: #0284c7
+        }
+    </style>
+</head>
+
+<body>
+    <button class="menu-toggle"
+        onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+    <aside class="sidebar">
+        <h2>DMC <span>Power Agent</span></h2>
+        <div class="section">Banjaran</div>
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/static/anomalies.html">Anomalies</a>
+            <a href="/static/predict.html">Prediction</a>
+            <a href="/static/notifications.html">Notifications</a>
+            <a href="/static/bot.html" class="active">Telegram Bot</a>
+            <a href="/static/admin.html" id="adminLink" style="display:none">Admin</a>
+        </nav>
+        <div class="login-area">
+            <a href="#" id="loginToggle" onclick="toggleLogin()">Login</a>
+        </div>
+    </aside>
+    <div class="main">
+        <div class="header">
+            <h1>Telegram Bot</h1>
+            <div class="subtitle">Interact with the power agent via Telegram commands</div>
+        </div>
+
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+                <div>
+                    <div class="label">Bot Status</div>
+                    <div id="status-badge" class="status-badge">
+                        <span class="dot"></span>
+                        <span>Loading...</span>
+                    </div>
+                </div>
+                <a class="bot-link" id="botLink" href="#" target="_blank">
+                    Open in Telegram
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="label">Commands</div>
+            <div class="cmd-grid">
+                <div class="cmd-item">
+                    <div class="cmd">/start</div>
+                    <div class="desc">Show available commands</div>
+                </div>
+                <div class="cmd-item">
+                    <div class="cmd">/status</div>
+                    <div class="desc">Current live power readings</div>
+                </div>
+                <div class="cmd-item">
+                    <div class="cmd">/anomalies</div>
+                    <div class="desc">Latest anomaly detections</div>
+                </div>
+                <div class="cmd-item">
+                    <div class="cmd">/predict</div>
+                    <div class="desc">24-hour consumption forecast</div>
+                </div>
+                <div class="cmd-item">
+                    <div class="cmd">/summary</div>
+                    <div class="desc">Trigger daily summary report</div>
+                </div>
+            </div>
+            <p style="font-size:12px;color:#94a3b8;margin-top:12px">
+                Message the bot directly on Telegram with any of these commands.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function updateSidebarAuth() {
+            var authed = localStorage.getItem('admin_authenticated') === '1';
+            document.getElementById('adminLink').style.display = authed ? 'block' : 'none';
+            document.getElementById('loginToggle').textContent = authed ? 'Logout' : 'Login';
+        }
+
+        async function toggleLogin() {
+            var authed = localStorage.getItem('admin_authenticated') === '1';
+            if (authed) {
+                localStorage.removeItem('admin_authenticated');
+                updateSidebarAuth();
+                return;
+            }
+            var pass = prompt('Enter admin password:');
+            if (!pass) return;
+            try {
+                var r = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pass })
+                });
+                var d = await r.json();
+                if (d.ok) {
+                    localStorage.setItem('admin_authenticated', '1');
+                    updateSidebarAuth();
+                } else {
+                    alert(d.message || 'Invalid password');
+                }
+            } catch (e) {
+                alert('Login request failed');
+            }
+        }
+
+        fetch('/api/bot/info').then(function (r) { return r.json(); }).then(function (d) {
+            var badge = document.getElementById('status-badge');
+            var link = document.getElementById('botLink');
+            if (d.configured && d.username !== 'unknown') {
+                badge.className = 'status-badge ok';
+                badge.innerHTML = '<span class="dot"></span><span>@' + d.username + '</span>';
+                link.href = 'https://t.me/' + d.username;
+            } else if (d.configured) {
+                badge.className = 'status-badge ok';
+                badge.innerHTML = '<span class="dot"></span><span>Active</span>';
+            } else {
+                badge.className = 'status-badge nok';
+                badge.innerHTML = '<span class="dot"></span><span>Not configured</span>';
+                link.style.display = 'none';
+            }
+        }).catch(function () {});
+        updateSidebarAuth();
+    </script>
+</body>
+
+</html>

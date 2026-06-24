@@ -271,6 +271,25 @@
             width: 100% !important;
             max-height: 220px
         }
+        .section-charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px
+        }
+        .section-charts .chart-box canvas {
+            max-height: 160px
+        }
+        @media(max-width:900px) {
+            .section-charts {
+                grid-template-columns: 1fr 1fr
+            }
+        }
+        @media(max-width:600px) {
+            .section-charts {
+                grid-template-columns: 1fr
+            }
+        }
         .event-log {
             background: #ffffff;
             border-radius: 12px;
@@ -420,6 +439,7 @@
             <a href="/static/anomalies.html" class="active">Anomalies</a>
             <a href="/static/predict.html">Prediction</a>
             <a href="/static/notifications.html">Notifications</a>
+            <a href="/static/bot.html">Telegram Bot</a>
             <a href="/static/admin.html" id="adminLink" style="display:none">Admin</a>
         </nav>
         <div class="login-area">
@@ -490,6 +510,29 @@
             </div>
         </div>
 
+        <div class="section-charts">
+            <div class="chart-box">
+                <h3>Spinning 5 &mdash; Last 200 Readings</h3>
+                <canvas id="chart-sp5"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Spinning 6 &mdash; Last 200 Readings</h3>
+                <canvas id="chart-sp6"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Compressor &mdash; Last 200 Readings</h3>
+                <canvas id="chart-comp"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Weaving &mdash; Last 200 Readings</h3>
+                <canvas id="chart-weav"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>PP2G &mdash; Last 200 Readings</h3>
+                <canvas id="chart-pp2g"></canvas>
+            </div>
+        </div>
+
         <table>
             <thead>
                 <tr>
@@ -506,43 +549,86 @@
         </table>
     </div>
     <script>
-        let chart;
+        var charts = {};
+
+        var SECTION_CONFIG = [
+            { key: 'KW_TOTAL', id: 'chart', label: 'Total', color: '#0ea5e9' },
+            { key: 'KW_TOTAL_SPINNING5', id: 'chart-sp5', label: 'Sp 5', color: '#22c55e' },
+            { key: 'KW_TOTAL_SPINNING6', id: 'chart-sp6', label: 'Sp 6', color: '#a855f7' },
+            { key: 'KW_TOTAL_COMPRESSOR', id: 'chart-comp', label: 'Comp', color: '#f59e0b' },
+            { key: 'KW_TOTAL_WEAVING', id: 'chart-weav', label: 'Weav', color: '#ef4444' },
+            { key: 'KW_TOTAL_PP2G', id: 'chart-pp2g', label: 'PP2G', color: '#ec4899' },
+        ];
+
+        function makeChartConfig(labels, values, color) {
+            return {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '',
+                        data: values,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        fill: true,
+                        tension: 0.2,
+                        pointRadius: 1,
+                        pointHitRadius: 8,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#64748b', maxTicksLimit: 8, font: { size: 8 } }, grid: { color: '#f1f5f9' } },
+                        y: { ticks: { color: '#64748b', font: { size: 8 } }, grid: { color: '#f1f5f9' } }
+                    }
+                }
+            };
+        }
 
         async function loadChartData() {
             try {
-                const resp = await fetch('/api/history?variables=KW_TOTAL&limit=200');
-                const json = await resp.json();
-                if (!json.data || json.data.length === 0) return;
-                const data = json.data.reverse();
-                const labels = data.map(d => d.timestamp.slice(11, 19));
-                const values = data.map(d => d.KW_TOTAL);
-                const cfg = {
-                    type: 'line',
-                    data: {
-                        labels,
-                        datasets: [{
-                            label: 'KW_TOTAL',
-                            data: values,
-                            borderColor: '#0ea5e9',
-                            backgroundColor: '#0ea5e910',
-                            fill: true,
-                            tension: 0.2,
-                            pointRadius: 2,
-                            pointHitRadius: 10,
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            x: { ticks: { color: '#64748b', maxTicksLimit: 10, font: { size: 9 } }, grid: { color: '#f1f5f9' } },
-                            y: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: '#f1f5f9' } }
+                var vars = SECTION_CONFIG.map(function (s) { return s.key; }).join(',');
+                var th = document.getElementById('threshold').value;
+                var [histResp, anomResp] = await Promise.all([
+                    fetch('/api/history?variables=' + vars + '&limit=200'),
+                    fetch('/api/anomalies?threshold=' + th)
+                ]);
+                var histJson = await histResp.json();
+                var anomJson = await anomResp.json();
+                if (!histJson.data || histJson.data.length === 0) return;
+
+                var anomLookup = {};
+                (anomJson.anomalies || []).forEach(function (a) {
+                    var ts = a.timestamp.replace('T', ' ');
+                    if (!anomLookup[ts]) anomLookup[ts] = {};
+                    anomLookup[ts][a.variable] = a.severity;
+                });
+
+                var data = histJson.data.reverse();
+                var labels = data.map(function (d) { return d.timestamp.slice(11, 19); });
+                SECTION_CONFIG.forEach(function (sec) {
+                    var values = data.map(function (d) { return d[sec.key] || null; });
+                    var pointRadii = data.map(function (d) {
+                        return (anomLookup[d.timestamp] && anomLookup[d.timestamp][sec.key]) ? 5 : 0;
+                    });
+                    var pointColors = data.map(function (d) {
+                        if (anomLookup[d.timestamp] && anomLookup[d.timestamp][sec.key]) {
+                            return anomLookup[d.timestamp][sec.key] === 'high' ? '#dc2626' : '#f59e0b';
                         }
-                    }
-                };
-                if (chart) { chart.destroy(); }
-                chart = new Chart(document.getElementById('chart'), cfg);
+                        return sec.color;
+                    });
+                    var cfg = makeChartConfig(labels, values, sec.color);
+                    cfg.data.datasets[0].pointRadius = pointRadii;
+                    cfg.data.datasets[0].pointBackgroundColor = pointColors;
+                    cfg.data.datasets[0].pointBorderColor = pointColors;
+                    var el = document.getElementById(sec.id);
+                    if (!el) return;
+                    if (charts[sec.id]) { charts[sec.id].destroy(); }
+                    charts[sec.id] = new Chart(el, cfg);
+                });
             } catch (e) { console.error('Chart load failed', e); }
         }
 

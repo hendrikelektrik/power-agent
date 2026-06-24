@@ -171,12 +171,41 @@ def save_notification(kind: str, message: str, success: bool):
     conn.close()
 
 
-def get_notifications(limit: int = 50) -> list:
+def count_notifications(start_date: str = None, end_date: str = None) -> int:
     conn = get_connection()
-    cur = conn.execute(
-        "SELECT timestamp, kind, message, success FROM notifications ORDER BY id DESC LIMIT ?",
-        (limit,),
-    )
+    query = "SELECT COUNT(*) FROM notifications"
+    params = []
+    conditions = []
+    if start_date:
+        conditions.append("timestamp >= ?")
+        params.append(start_date)
+    if end_date:
+        conditions.append("timestamp <= ?")
+        params.append(end_date + "T23:59:59")
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    cur = conn.execute(query, params)
+    total = cur.fetchone()[0]
+    conn.close()
+    return total
+
+
+def get_notifications(limit: int = 50, start_date: str = None, end_date: str = None) -> list:
+    conn = get_connection()
+    query = "SELECT timestamp, kind, message, success FROM notifications"
+    params = []
+    conditions = []
+    if start_date:
+        conditions.append("timestamp >= ?")
+        params.append(start_date)
+    if end_date:
+        conditions.append("timestamp <= ?")
+        params.append(end_date + "T23:59:59")
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY id DESC LIMIT ?"
+    params.append(limit)
+    cur = conn.execute(query, params)
     rows = [
         {
             "timestamp": r[0],

@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+import requests
 from fastapi import FastAPI, Query, Body
 from fastapi.responses import JSONResponse
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -14,12 +15,44 @@ from power_agent.storage import get_notifications, get_setting, set_setting
 from power_agent.storage import get_history, pivot_history, get_recent_snapshots
 from power_agent.fetcher import collect_snapshot
 from power_agent.collector import send_daily_summary
+from power_agent.bot import start_bot
 from power_agent.config import CONFIG
 
 app = FastAPI(title="Power Agent", version="1.0.0")
 
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+@app.on_event("startup")
+def _start_bot():
+    start_bot()
+
+
+@app.get("/api/bot/info")
+def bot_info():
+    token = CONFIG.telegram_bot_token
+    if not token:
+        return {"configured": False}
+    try:
+        r = requests.get(f"https://api.telegram.org/bot{token}/getMe", timeout=10)
+        if r.ok:
+            data = r.json().get("result", {})
+            return {
+                "configured": True,
+                "username": data.get("username", "unknown"),
+                "name": data.get("first_name", ""),
+            }
+    except Exception:
+        pass
+    return {"configured": True, "username": "unknown", "name": ""}
+
+
+@app.get("/api/bot/test")
+def bot_test():
+    from power_agent.bot import poll_once
+    poll_once()
+    return {"status": "ok"}
 
 
 # --- JSON API ---
@@ -134,8 +167,16 @@ def notify_status():
 
 
 @app.get("/api/notify/history")
-def notify_history(limit: int = Query(50, ge=1, le=500)):
-    return {"history": get_notifications(limit)}
+def notify_history(
+    limit: int = Query(50, ge=1, le=500),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+):
+    from power_agent.storage import count_notifications as cnt
+    return {
+        "history": get_notifications(limit, start_date=start_date, end_date=end_date),
+        "total": cnt(start_date=start_date, end_date=end_date),
+    }
 
 
 @app.get("/api/notify/summary")
