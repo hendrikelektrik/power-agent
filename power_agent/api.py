@@ -174,8 +174,8 @@ def _calc_shifts_for_date(
     wbp_end: str = "22:00",
 ) -> list:
     next_day = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
-    query_start = f"{date} 07:30:00"
-    query_end = f"{next_day} 07:30:00"
+    query_start = f"{date}T07:30:00"
+    query_end = f"{next_day}T07:30:00"
     df = get_history("mmBanjaran", limit=10000, start_date=query_start, end_date=query_end)
     if df.empty:
         return []
@@ -267,8 +267,8 @@ def energy_debug(date: str = Query(None)):
     if date is None:
         date = datetime.now().strftime("%Y-%m-%d")
     next_day = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
-    query_start = f"{date} 07:30:00"
-    query_end = f"{next_day} 07:30:00"
+    query_start = f"{date}T07:30:00"
+    query_end = f"{next_day}T07:30:00"
     df = get_history("mmBanjaran", limit=10000, start_date=query_start, end_date=query_end)
     rows = []
     if not df.empty:
@@ -328,7 +328,7 @@ def energy(date: str = Query(None)):
 def energy_trend(days: int = Query(30, ge=7, le=90)):
     today = datetime.now().strftime("%Y-%m-%d")
     start = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-    df = get_history("mmBanjaran", limit=50000, start_date=start, end_date=f"{today} 23:59:59")
+    df = get_history("mmBanjaran", limit=50000, start_date=start, end_date=f"{today}T23:59:59")
     if df.empty:
         return {"days": days, "daily": []}
 
