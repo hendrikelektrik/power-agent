@@ -1,9 +1,10 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+import pandas as pd
 import requests
 from fastapi import FastAPI, Query, Body
 from fastapi.responses import JSONResponse
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Optional
 
@@ -22,6 +23,14 @@ app = FastAPI(title="Power Agent", version="1.0.0")
 
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+
+
+@app.get("/favicon.ico")
+def favicon():
+    return FileResponse(os.path.join(STATIC_DIR, "favicon.svg"), media_type="image/svg+xml")
 
 
 @app.on_event("startup")
@@ -131,6 +140,191 @@ def history(
     }
 
 
+SHIFT_DEFS = [
+    {"id": 1, "label": "Shift 1 (07:30-13:30)", "start": "07:30", "end": "13:30", "hours": 6},
+    {"id": 2, "label": "Shift 2 (13:30-21:30)", "start": "13:30", "end": "21:30", "hours": 8},
+    {"id": 3, "label": "Shift 3 (21:30-07:30)", "start": "21:30", "end": "07:30", "hours": 10},
+]
+
+
+SECTION_LABELS = {
+    "KW_TOTAL": "Total",
+    "KW_TOTAL_SPINNING5": "Sp 5",
+    "KW_TOTAL_SPINNING6": "Sp 6",
+    "KW_TOTAL_COMPRESSOR": "Comp",
+    "KW_TOTAL_WEAVING": "Weav",
+    "KW_TOTAL_PP2G": "PP2G",
+}
+
+
+def _time_to_shift(t):
+    h, m = t.hour, t.minute
+    if h == 7 and m >= 30 or 8 <= h < 13 or h == 13 and m < 30:
+        return 1
+    if h == 13 and m >= 30 or 14 <= h < 21 or h == 21 and m < 30:
+        return 2
+    return 3
+
+
+def _calc_shifts_for_date(
+    date: str,
+    tariff_wbp: float = 0,
+    tariff_lwbp: float = 0,
+    wbp_start: str = "18:00",
+    wbp_end: str = "22:00",
+) -> list:
+    prev = (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+    next_day = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+    query_start = f"{prev} 21:00:00"
+    query_end = f"{next_day} 07:30:00"
+    df = get_history("mmBanjaran", limit=10000, start_date=query_start, end_date=query_end)
+    if df.empty:
+        return []
+    pivoted = pivot_history(df)
+    if pivoted.empty:
+        return []
+    pivoted = pivoted.sort_index()
+    cols = [c for c in pivoted.columns if c.startswith("KW_TOTAL")]
+    if not cols:
+        return []
+    deltas = pivoted.index.to_series().diff().dt.total_seconds().div(3600).fillna(1 / 60)
+    sections = [c for c in cols if c in SECTION_LABELS]
+
+    wbp_h = int(wbp_start.split(":")[0])
+    wbp_m = int(wbp_start.split(":")[1])
+    wbp_end_h = int(wbp_end.split(":")[0])
+    wbp_end_m = int(wbp_end.split(":")[1])
+
+    def _is_wbp(t):
+        if wbp_end_h > wbp_h or (wbp_end_h == wbp_h and wbp_end_m > wbp_m):
+            return (t.hour > wbp_h or (t.hour == wbp_h and t.minute >= wbp_m)) and \
+                   (t.hour < wbp_end_h or (t.hour == wbp_end_h and t.minute < wbp_end_m))
+        return False
+
+    shifts_data = {1: {}, 2: {}, 3: {}}
+    peak_data = {1: {}, 2: {}, 3: {}}
+    cost_data = {1: {}, 2: {}, 3: {}}
+    for s in sections:
+        for sh_id in shifts_data:
+            shifts_data[sh_id][s] = 0.0
+            peak_data[sh_id][s] = 0.0
+            cost_data[sh_id][s] = 0.0
+    for i in range(len(pivoted)):
+        ts = pivoted.index[i]
+        sh = _time_to_shift(ts)
+        dt = deltas.iloc[i]
+        rate = tariff_wbp if _is_wbp(ts) else tariff_lwbp
+        for s in sections:
+            v = pivoted[s].iloc[i]
+            if pd.notna(v):
+                kwh = v * dt
+                shifts_data[sh][s] += kwh
+                cost_data[sh][s] += kwh * rate
+                if v > peak_data[sh][s]:
+                    peak_data[sh][s] = v
+    total_kwh = {1: 0.0, 2: 0.0, 3: 0.0}
+    total_peak = {1: 0.0, 2: 0.0, 3: 0.0}
+    total_cost = {1: 0.0, 2: 0.0, 3: 0.0}
+    for sh_id in shifts_data:
+        for s in shifts_data[sh_id]:
+            shifts_data[sh_id][s] = round(shifts_data[sh_id][s], 2)
+            total_kwh[sh_id] += shifts_data[sh_id][s]
+            peak_data[sh_id][s] = round(peak_data[sh_id][s], 2)
+            if peak_data[sh_id][s] > total_peak[sh_id]:
+                total_peak[sh_id] = peak_data[sh_id][s]
+            cost_data[sh_id][s] = round(cost_data[sh_id][s], 2)
+            total_cost[sh_id] += cost_data[sh_id][s]
+        total_kwh[sh_id] = round(total_kwh[sh_id], 2)
+        total_peak[sh_id] = round(total_peak[sh_id], 2)
+        total_cost[sh_id] = round(total_cost[sh_id], 2)
+    results = []
+    for sd in SHIFT_DEFS:
+        sid = sd["id"]
+        sections_out = {}
+        peaks_out = {}
+        costs_out = {}
+        for s in sections:
+            label = SECTION_LABELS.get(s, s)
+            sections_out[label] = shifts_data[sid][s]
+            peaks_out[label] = peak_data[sid][s]
+            costs_out[label] = cost_data[sid][s]
+        results.append({
+            "id": sid,
+            "label": sd["label"],
+            "hours": sd["hours"],
+            "total_kwh": total_kwh[sid],
+            "kwh_per_hour": round(total_kwh[sid] / sd["hours"], 2),
+            "peak_kw": total_peak[sid],
+            "total_cost": total_cost[sid],
+            "sections": sections_out,
+            "peak_sections": peaks_out,
+            "cost_sections": costs_out,
+        })
+    return results
+
+
+@app.get("/api/energy")
+def energy(date: str = Query(None)):
+    if date is None:
+        date = datetime.now().strftime("%Y-%m-%d")
+    tw = float(get_setting("tariff_wbp", CONFIG.tariff_wbp))
+    tl = float(get_setting("tariff_lwbp", CONFIG.tariff_lwbp))
+    ws = get_setting("wbp_start", CONFIG.wbp_start)
+    we = get_setting("wbp_end", CONFIG.wbp_end)
+    shifts = _calc_shifts_for_date(date, tariff_wbp=tw, tariff_lwbp=tl, wbp_start=ws, wbp_end=we)
+    week_ago = (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
+    prev_shifts = _calc_shifts_for_date(week_ago, tariff_wbp=tw, tariff_lwbp=tl, wbp_start=ws, wbp_end=we)
+
+    prev_lookup = {}
+    for ps in prev_shifts:
+        prev_lookup[ps["id"]] = ps["total_kwh"]
+
+    for sh in shifts:
+        prev_kwh = prev_lookup.get(sh["id"])
+        if prev_kwh and prev_kwh > 0:
+            sh["vs_last_week_pct"] = round((sh["total_kwh"] - prev_kwh) / prev_kwh * 100, 1)
+            sh["vs_last_week_kwh"] = round(sh["total_kwh"] - prev_kwh, 2)
+            sh["last_week_kwh"] = prev_kwh
+        else:
+            sh["vs_last_week_pct"] = None
+            sh["vs_last_week_kwh"] = None
+            sh["last_week_kwh"] = None
+
+    return {"date": date, "shifts": shifts, "show_cost": get_setting("show_cost", CONFIG.show_cost) == "1"}
+
+
+@app.get("/api/energy/trend")
+def energy_trend(days: int = Query(30, ge=7, le=90)):
+    today = datetime.now().strftime("%Y-%m-%d")
+    start = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    df = get_history("mmBanjaran", limit=50000, start_date=start, end_date=f"{today} 23:59:59")
+    if df.empty:
+        return {"days": days, "daily": []}
+
+    pivoted = pivot_history(df)
+    if pivoted.empty:
+        return {"days": days, "daily": []}
+
+    pivoted = pivoted.sort_index()
+    total_col = [c for c in pivoted.columns if c == "KW_TOTAL"]
+    if not total_col:
+        return {"days": days, "daily": []}
+    total_col = total_col[0]
+
+    deltas = pivoted.index.to_series().diff().dt.total_seconds().div(3600).fillna(1 / 60)
+    wh = pivoted[total_col] * deltas
+    wh.name = "kwh"
+
+    daily = wh.resample("D").sum().reset_index()
+    daily.columns = ["date", "kwh"]
+    daily["kwh"] = daily["kwh"].round(2)
+
+    return {
+        "days": days,
+        "daily": daily.to_dict(orient="records"),
+    }
+
+
 @app.get("/api/anomalies")
 def anomalies(
     plant_id: str = Query("mmBanjaran"),
@@ -203,19 +397,27 @@ _NOTIFY_KEYS = [
 ]
 
 
+_TARIFF_KEYS = ["tariff_wbp", "tariff_lwbp", "wbp_start", "wbp_end", "show_cost"]
+
+
 def _load_settings() -> dict:
     result = {}
     result["daily_summary_time"] = get_setting("daily_summary_time", CONFIG.daily_summary_time)
     for key in _NOTIFY_KEYS:
         default = "1" if getattr(CONFIG, key, True) else "0"
         result[key] = get_setting(key, default)
+    for key in _TARIFF_KEYS:
+        result[key] = get_setting(key, getattr(CONFIG, key, ""))
     return result
 
 
 def _save_setting(key: str, value: str):
     set_setting(key, value)
     if hasattr(CONFIG, key):
-        setattr(CONFIG, key, value == "1")
+        if key in _NOTIFY_KEYS:
+            setattr(CONFIG, key, value == "1")
+        else:
+            setattr(CONFIG, key, value)
 
 
 @app.get("/api/admin/settings")
@@ -232,6 +434,9 @@ def admin_update_settings(body: dict = Body(...)):
     for key in _NOTIFY_KEYS:
         if key in body:
             _save_setting(key, body[key])
+    for key in _TARIFF_KEYS:
+        if key in body:
+            _save_setting(key, str(body[key]))
     return {"ok": True, **_load_settings()}
 
 

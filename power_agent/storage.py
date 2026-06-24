@@ -79,29 +79,31 @@ def get_history(
     plant_id: str = "mmBanjaran",
     variables: Optional[List[str]] = None,
     limit: int = 1000,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
 ) -> pd.DataFrame:
     conn = get_connection()
+    base_where = "s.plant_id = ?"
+    params = [plant_id]
     if variables:
         placeholders = ",".join("?" * len(variables))
-        query = f"""
-            SELECT s.timestamp, s.plant_id, r.variable, r.value
-            FROM snapshots s
-            JOIN readings r ON r.snapshot_id = s.id
-            WHERE s.plant_id = ? AND r.variable IN ({placeholders})
-            ORDER BY s.timestamp DESC
-            LIMIT ?
-        """
-        params = [plant_id] + variables + [limit]
-    else:
-        query = """
-            SELECT s.timestamp, s.plant_id, r.variable, r.value
-            FROM snapshots s
-            JOIN readings r ON r.snapshot_id = s.id
-            WHERE s.plant_id = ?
-            ORDER BY s.timestamp DESC
-            LIMIT ?
-        """
-        params = [plant_id, limit]
+        base_where += f" AND r.variable IN ({placeholders})"
+        params += variables
+    if start_date:
+        base_where += " AND s.timestamp >= ?"
+        params.append(start_date)
+    if end_date:
+        base_where += " AND s.timestamp <= ?"
+        params.append(end_date)
+    query = f"""
+        SELECT s.timestamp, s.plant_id, r.variable, r.value
+        FROM snapshots s
+        JOIN readings r ON r.snapshot_id = s.id
+        WHERE {base_where}
+        ORDER BY s.timestamp DESC
+        LIMIT ?
+    """
+    params.append(limit)
     df = pd.read_sql_query(query, conn, params=params)
     conn.close()
     if not df.empty:

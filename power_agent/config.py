@@ -42,6 +42,13 @@ class AppConfig:
     notify_scada_offline_enabled: bool = True
     notify_scada_online_enabled: bool = True
 
+    # tariff
+    tariff_wbp: str = "1035.78"
+    tariff_lwbp: str = "1035.78"
+    wbp_start: str = "18:00"
+    wbp_end: str = "22:00"
+    show_cost: str = "0"
+
 
 CONFIG = AppConfig()
 

@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DMC Power Agent</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico">
     <style>
         * {
             margin: 0;
@@ -329,6 +330,7 @@
             <a href="/">Dashboard</a>
             <a href="/static/anomalies.html">Anomalies</a>
             <a href="/static/predict.html">Prediction</a>
+            <a href="/static/energy.html">Energy</a>
             <a href="/static/notifications.html">Notifications</a>
             <a href="/static/bot.html">Telegram Bot</a>
             <a href="/static/admin.html" class="active" id="adminLink">Admin</a>
@@ -390,6 +392,32 @@
                 <span class="hint">manually trigger today's report</span>
             </div>
             <div id="summaryResult" class="result-box"></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+            <div class="label">Tariff Settings</div>
+            <div class="settings-row">
+                <span style="font-size:14px;color:#475569">WBP Rate (Rp/kWh):</span>
+                <input type="text" id="tariffWbp" style="width:120px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+            </div>
+            <div class="settings-row" style="margin-top:8px">
+                <span style="font-size:14px;color:#475569">LWBP Rate (Rp/kWh):</span>
+                <input type="text" id="tariffLwbp" style="width:120px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+            </div>
+            <div class="settings-row" style="margin-top:8px">
+                <span style="font-size:14px;color:#475569">WBP Start:</span>
+                <input type="time" id="wbpStart" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+                <span style="font-size:14px;color:#475569;margin-left:16px">WBP End:</span>
+                <input type="time" id="wbpEnd" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+            </div>
+            <div class="toggle-row" style="margin-top:12px">
+                <div><div class="toggle-label">Show Cost on Energy Page</div><div class="toggle-desc">display Rp values in shift cards and tables</div></div>
+                <label class="toggle-switch"><input type="checkbox" id="tog_show_cost" onchange="saveTariff()"><span class="toggle-slider"></span></label>
+            </div>
+            <div style="margin-top:12px">
+                <button class="btn btn-primary" onclick="saveTariff()" style="padding:8px 20px;font-size:13px">Save Tariff</button>
+                <span id="tariffSaved" style="font-size:12px;color:#16a34a;display:none;margin-left:8px">Saved</span>
+            </div>
         </div>
     </div>
 
@@ -469,6 +497,11 @@
                 var r = await fetch('/api/admin/settings');
                 var d = await r.json();
                 document.getElementById('summaryTime').value = d.daily_summary_time;
+                document.getElementById('tariffWbp').value = d.tariff_wbp;
+                document.getElementById('tariffLwbp').value = d.tariff_lwbp;
+                document.getElementById('wbpStart').value = d.wbp_start;
+                document.getElementById('wbpEnd').value = d.wbp_end;
+                setToggle('tog_show_cost', d.show_cost);
                 setToggle('tog_anomaly', d.notify_anomaly_enabled);
                 setToggle('tog_summary', d.notify_summary_enabled);
                 setToggle('tog_scada_offline', d.notify_scada_offline_enabled);
@@ -505,6 +538,26 @@
                 saved.style.display = 'inline';
                 setTimeout(function () { saved.style.display = 'none'; }, 2000);
             } catch (e) { alert('Failed to save'); }
+        }
+
+        async function saveTariff() {
+            var body = {
+                tariff_wbp: document.getElementById('tariffWbp').value,
+                tariff_lwbp: document.getElementById('tariffLwbp').value,
+                wbp_start: document.getElementById('wbpStart').value,
+                wbp_end: document.getElementById('wbpEnd').value,
+                show_cost: document.getElementById('tog_show_cost').checked ? '1' : '0',
+            };
+            try {
+                await fetch('/api/admin/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                var saved = document.getElementById('tariffSaved');
+                saved.style.display = 'inline';
+                setTimeout(function () { saved.style.display = 'none'; }, 2000);
+            } catch (e) { alert('Failed to save tariff'); }
         }
 
         async function sendSummary() {

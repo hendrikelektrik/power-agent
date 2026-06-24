@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMC Power Agent</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b
+        }
+
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 20;
+            background: #0ea5e9;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 18px;
+            cursor: pointer
+        }
+
+        @media(max-width:640px) {
+            .menu-toggle {
+                display: block
+            }
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 220px;
+            height: 100vh;
+            background: #ffffff;
+            padding: 24px 0;
+            z-index: 10;
+            border-right: 1px solid #e2e8f0;
+            transition: transform .3s
+        }
+
+        @media(max-width:640px) {
+            .sidebar {
+                transform: translateX(-100%)
+            }
+
+            .sidebar.open {
+                transform: translateX(0)
+            }
+        }
+
+        .sidebar h2 {
+            color: #0ea5e9;
+            padding: 0 20px 4px;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -.3px
+        }
+
+        .sidebar h2 span {
+            color: #0f172a
+        }
+
+        .sidebar .section-label {
+            padding: 16px 20px 4px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            font-weight: 600
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 10px 20px;
+            color: #475569;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: .15s
+        }
+
+        .sidebar a:hover {
+            background: #f1f5f9;
+            color: #0ea5e9
+        }
+
+        .sidebar a.active {
+            background: #e0f2fe;
+            color: #0369a1;
+            font-weight: 600
+        }
+
+        .sidebar .login-area {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            border-top: 1px solid #e2e8f0;
+            padding: 8px 0
+        }
+
+        .sidebar .login-area a {
+            font-size: 12px
+        }
+
+        .main {
+            margin-left: 220px;
+            padding: 24px 32px
+        }
+
+        @media(max-width:640px) {
+            .main {
+                margin-left: 0;
+                padding: 16px
+            }
+        }
+
+        .page-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 4px
+        }
+
+        .page-sub {
+            color: #64748b;
+            font-size: 13px;
+            margin-bottom: 20px
+        }
+
+        .date-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap
+        }
+
+        .date-bar input[type=date] {
+            padding: 6px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 13px;
+            background: #fff
+        }
+
+        .date-bar button {
+            background: #0ea5e9;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 18px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 500
+        }
+
+        .shift-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px
+        }
+
+        @media(max-width:800px) {
+            .shift-grid {
+                grid-template-columns: 1fr
+            }
+        }
+
+        .shift-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            padding: 16px 20px
+        }
+
+        .shift-card .shift-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: #94a3b8;
+            font-weight: 600;
+            margin-bottom: 4px
+        }
+
+        .shift-card .kwh-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0f172a
+        }
+
+        .shift-card .kwh-unit {
+            font-size: 13px;
+            color: #64748b;
+            margin-left: 2px
+        }
+
+        .shift-card.s1 {
+            border-left: 4px solid #0ea5e9
+        }
+
+        .shift-card.s2 {
+            border-left: 4px solid #22c55e
+        }
+
+        .shift-card.s3 {
+            border-left: 4px solid #a855f7
+        }
+
+        .section-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px
+        }
+
+        @media(max-width:800px) {
+            .section-grid {
+                grid-template-columns: 1fr
+            }
+        }
+
+        .section-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            padding: 16px 20px
+        }
+
+        .section-card h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: #94a3b8;
+            font-weight: 600;
+            margin-bottom: 12px
+        }
+
+        .section-card table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px
+        }
+
+        .section-card th {
+            text-align: left;
+            padding: 4px 8px;
+            color: #94a3b8;
+            font-weight: 500;
+            border-bottom: 1px solid #f1f5f9
+        }
+
+        .section-card td {
+            padding: 5px 8px;
+            border-bottom: 1px solid #f1f5f9
+        }
+
+        .section-card td:last-child {
+            text-align: right;
+            font-weight: 600;
+            font-family: monospace
+        }
+
+        .section-card .total-row td {
+            border-top: 2px solid #e2e8f0;
+            font-weight: 700;
+            color: #0f172a
+        }
+
+        .chart-box {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            padding: 16px 20px;
+            margin-bottom: 16px
+        }
+
+        .chart-box h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: #94a3b8;
+            font-weight: 600;
+            margin-bottom: 8px
+        }
+
+        .chart-box canvas {
+            width: 100% !important;
+            max-height: 300px
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #94a3b8;
+            font-size: 14px
+        }
+
+        .section-colors {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            font-size: 11px;
+            color: #64748b
+        }
+
+        .section-colors .swatch {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            margin-right: 4px;
+            vertical-align: middle
+        }
+    </style>
+</head>
+
+<body>
+    <button class="menu-toggle" id="menuBtn"
+        onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+    <aside class="sidebar">
+        <h2>DMC <span>Power Agent</span></h2>
+        <div class="section-label">Banjaran</div>
+        <nav>
+            <a href="/static/dashboard.html">Dashboard</a>
+            <a href="/static/anomalies.html">Anomalies</a>
+            <a href="/static/predict.html">Prediction</a>
+            <a href="/static/energy.html" class="active">Energy</a>
+            <a href="/static/notifications.html">Notifications</a>
+            <a href="/static/bot.html">Telegram Bot</a>
+            <a href="/static/admin.html" id="adminLink" style="display:none">Admin</a>
+        </nav>
+        <div class="login-area">
+            <a href="#" onclick="toggleLogin()" id="loginToggle">Login</a>
+        </div>
+    </aside>
+
+    <div class="main">
+        <div class="page-title">&#9889; Energy Analysis</div>
+        <div class="page-sub">kWh consumption by shift &mdash; per section breakdown</div>
+
+        <div class="date-bar">
+            <input type="date" id="energy-date">
+            <button onclick="loadEnergy()">Load</button>
+            <button onclick="setToday()" style="background:none;border:1px solid #e2e8f0;color:#475569">Today</button>
+        </div>
+
+        <div class="shift-grid" id="shift-grid"></div>
+
+        <div id="daily-summary" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 20px;margin-bottom:16px;display:none">
+            <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center">
+                <span style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;font-weight:600">Daily Total</span>
+                <span style="font-size:20px;font-weight:700;color:#0f172a"><span id="daily-kwh">0</span> <span style="font-size:12px;color:#64748b;font-weight:400">kWh</span></span>
+                <span id="daily-cost-wrap" style="font-size:20px;font-weight:700;color:#0f172a">Rp <span id="daily-cost">0</span></span>
+            </div>
+        </div>
+
+        <div class="section-colors" id="section-colors"></div>
+
+        <div class="chart-box">
+            <h3>Section kWh by Shift</h3>
+            <canvas id="energy-chart"></canvas>
+        </div>
+
+        <div class="section-grid" id="section-grid"></div>
+
+        <div class="chart-box" style="margin-top:16px">
+            <h3>Daily kWh Trend &mdash; Last 30 Days</h3>
+            <canvas id="trend-chart"></canvas>
+        </div>
+
+        <div class="empty-state" id="empty-state" style="display:none">No data for this date</div>
+    </div>
+
+    <script>
+        var barChart = null;
+        var trendChart = null;
+        var COLORS = { Total: '#0ea5e9', 'Sp 5': '#22c55e', 'Sp 6': '#a855f7', Comp: '#f59e0b', Weav: '#ef4444', PP2G: '#ec4899' };
+
+        function setToday() {
+            document.getElementById('energy-date').value = new Date().toISOString().slice(0, 10);
+            loadEnergy();
+        }
+
+        async function loadEnergy() {
+            var date = document.getElementById('energy-date').value;
+            if (!date) { return; }
+            try {
+                var r = await fetch('/api/energy?date=' + date);
+                var d = await r.json();
+                render(d);
+            } catch (e) {
+                console.error('Energy load failed', e);
+            }
+        }
+
+        function render(data) {
+            var grid = document.getElementById('shift-grid');
+            var sgrid = document.getElementById('section-grid');
+            var empty = document.getElementById('empty-state');
+            var colorsEl = document.getElementById('section-colors');
+            var chartTitle = document.querySelector('.chart-box h3');
+
+            if (!data.shifts || data.shifts.length === 0) {
+                grid.innerHTML = '';
+                sgrid.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            var totalKwh = data.shifts.reduce(function (sum, sh) { return sum + sh.total_kwh; }, 0);
+            var totalCost = data.shifts.reduce(function (sum, sh) { return sum + (sh.total_cost || 0); }, 0);
+            document.getElementById('daily-kwh').textContent = totalKwh.toLocaleString();
+            document.getElementById('daily-cost').textContent = totalCost.toLocaleString();
+            var ds = document.getElementById('daily-summary');
+            ds.style.display = 'block';
+            document.getElementById('daily-cost-wrap').style.display = data.show_cost ? '' : 'none';
+
+            if (chartTitle) {
+                chartTitle.textContent = 'Section kWh by Shift \u2014 ' + data.date;
+            }
+
+            var allSections = data.shifts[0] ? Object.keys(data.shifts[0].sections) : [];
+
+            colorsEl.innerHTML = allSections.map(function (s) {
+                var c = COLORS[s] || '#94a3b8';
+                return '<span><span class="swatch" style="background:' + c + '"></span>' + s + '</span>';
+            }).join('');
+
+            grid.innerHTML = data.shifts.map(function (sh) {
+                var cls = 'shift-card s' + sh.id;
+                var wowHtml = '';
+                if (sh.vs_last_week_pct !== null) {
+                    var arrow = sh.vs_last_week_pct > 0 ? '&#9650;' : '&#9660;';
+                    var color = sh.vs_last_week_pct > 0 ? '#dc2626' : '#22c55e';
+                    wowHtml = '<span style="color:' + color + '" title="vs ' + sh.last_week_kwh + ' kWh last week">' + arrow + ' ' + Math.abs(sh.vs_last_week_pct) + '%</span>';
+                } else {
+                    wowHtml = '<span style="color:#94a3b8">— no data</span>';
+                }
+                return '<div class="' + cls + '">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+                    '<div class="shift-label">' + sh.label + '</div>' +
+                    '<span style="font-size:10px;color:#94a3b8;font-family:monospace">' + data.date + '</span>' +
+                    '</div>' +
+                    '<div class="kwh-value">' + sh.total_kwh.toLocaleString() + '<span class="kwh-unit">kWh</span></div>' +
+                    (data.show_cost ? '<div class="kwh-value" style="font-size:18px;margin-top:-4px">Rp ' + sh.total_cost.toLocaleString() + '</div>' : '') +
+                    '<div style="margin-top:6px;display:flex;gap:14px;font-size:12px;color:#64748b;flex-wrap:wrap">' +
+                    '<span title="Average kW per hour across ' + sh.hours + 'h shift">&#916; ' + sh.kwh_per_hour + ' kWh/h</span>' +
+                    '<span title="Peak kW demand during this shift">&#9650; ' + sh.peak_kw + ' kW pk</span>' +
+                    '<span title="Compared to same shift last week">WoW: ' + wowHtml + '</span>' +
+                    '</div></div>';
+            }).join('');
+
+            var sectionsPerCard = Math.ceil(allSections.length / 2);
+            var cards = [];
+            for (var si = 0; si < allSections.length; si += sectionsPerCard) {
+                cards.push(allSections.slice(si, si + sectionsPerCard));
+            }
+
+            sgrid.innerHTML = cards.map(function (secList) {
+                var rows = secList.map(function (s) {
+                    var vals = data.shifts.map(function (sh) { return sh.sections[s] || 0; });
+                    var total = vals.reduce(function (a, b) { return a + b; }, 0);
+                    var c = COLORS[s] || '#94a3b8';
+                    var row = '<tr>' +
+                        '<td style="border-left:3px solid ' + c + ';padding-left:10px;font-weight:600">' + s + '</td>' +
+                        vals.map(function (v) { return '<td>' + v.toFixed(1) + '</td>'; }).join('') +
+                        '<td>' + total.toFixed(1) + '</td>';
+                    if (data.show_cost) {
+                        var costs = data.shifts.map(function (sh) { return sh.cost_sections[s] || 0; });
+                        var totalCost = costs.reduce(function (a, b) { return a + b; }, 0);
+                        row += costs.map(function (v) { return '<td style="color:#475569">Rp ' + (v || 0).toLocaleString() + '</td>'; }).join('') +
+                            '<td style="font-weight:700;color:#0f172a">Rp ' + totalCost.toLocaleString() + '</td>';
+                    }
+                    row += '</tr>';
+                    return row;
+                }).join('');
+
+                var headers = '<th style="padding-left:10px">Section</th>' +
+                    data.shifts.map(function (sh) { return '<th>S' + sh.id + ' kWh</th>'; }).join('') +
+                    '<th>Total kWh</th>';
+                if (data.show_cost) {
+                    headers += data.shifts.map(function (sh) { return '<th>S' + sh.id + ' Cost</th>'; }).join('') +
+                        '<th>Total Cost</th>';
+                }
+
+                return '<div class="section-card"><div style="overflow-x:auto"><table><thead><tr>' + headers + '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+            }).join('');
+
+            drawChart(data.shifts, allSections);
+        }
+
+        function drawChart(shifts, sections) {
+            var labels = shifts.map(function (s) { return 'S' + s.id; });
+            var datasets = sections.map(function (sec) {
+                return {
+                    label: sec,
+                    data: shifts.map(function (sh) { return sh.sections[sec] || 0; }),
+                    backgroundColor: COLORS[sec] || '#94a3b8',
+                };
+            });
+
+            if (barChart) { barChart.destroy(); }
+            barChart = new Chart(document.getElementById('energy-chart'), {
+                type: 'bar',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: '#64748b', boxWidth: 12, padding: 12, font: { size: 10 } } }
+                    },
+                    scales: {
+                        x: { stacked: false, ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#f1f5f9' } },
+                        y: { stacked: false, beginAtZero: true, ticks: { color: '#64748b', font: { size: 9 }, callback: function (v) { return v + ' kWh'; } }, grid: { color: '#f1f5f9' } }
+                    }
+                }
+            });
+        }
+
+        async function loadTrend() {
+            try {
+                var r = await fetch('/api/energy/trend?days=30');
+                var d = await r.json();
+                if (!d.daily || d.daily.length === 0) return;
+                var labels = d.daily.map(function (x) { return x.date.slice(5); });
+                var values = d.daily.map(function (x) { return x.kwh; });
+                if (trendChart) { trendChart.destroy(); }
+                trendChart = new Chart(document.getElementById('trend-chart'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Daily kWh',
+                            data: values,
+                            borderColor: '#0ea5e9',
+                            backgroundColor: '#0ea5e920',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 2,
+                            pointHitRadius: 8,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: { ticks: { color: '#64748b', maxTicksLimit: 15, font: { size: 9 } }, grid: { color: '#f1f5f9' } },
+                            y: { beginAtZero: true, ticks: { color: '#64748b', font: { size: 9 }, callback: function (v) { return v + ' kWh'; } }, grid: { color: '#f1f5f9' } }
+                        }
+                    }
+                });
+            } catch (e) { console.error('Trend load failed', e); }
+        }
+
+        setToday();
+        loadTrend();
+    </script>
+    <script>
+        function updateSidebarAuth() {
+            var authed = localStorage.getItem('admin_authenticated') === '1';
+            document.getElementById('adminLink').style.display = authed ? 'block' : 'none';
+            document.getElementById('loginToggle').textContent = authed ? 'Logout' : 'Login';
+        }
+        async function toggleLogin() {
+            var authed = localStorage.getItem('admin_authenticated') === '1';
+            if (authed) {
+                localStorage.removeItem('admin_authenticated');
+                updateSidebarAuth();
+                return;
+            }
+            var pass = prompt('Enter admin password:');
+            if (!pass) return;
+            try {
+                var r = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pass }) });
+                var d = await r.json();
+                if (d.ok) { localStorage.setItem('admin_authenticated', '1'); updateSidebarAuth(); }
+                else { alert(d.message || 'Invalid password'); }
+            } catch (e) { alert('Login request failed'); }
+        }
+        updateSidebarAuth();
+    </script>
+</body>
+
+</html>
