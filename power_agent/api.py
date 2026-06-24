@@ -262,6 +262,38 @@ def _calc_shifts_for_date(
     return results
 
 
+@app.get("/api/energy/debug")
+def energy_debug(date: str = Query(None)):
+    if date is None:
+        date = datetime.now().strftime("%Y-%m-%d")
+    next_day = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+    query_start = f"{date} 07:30:00"
+    query_end = f"{next_day} 07:30:00"
+    df = get_history("mmBanjaran", limit=10000, start_date=query_start, end_date=query_end)
+    rows = []
+    if not df.empty:
+        pivoted = pivot_history(df).sort_index()
+        for i in range(min(len(pivoted), 100)):
+            ts = pivoted.index[i]
+            sh = _time_to_shift(ts)
+            rows.append({"ts": str(ts), "hour": ts.hour, "minute": ts.minute, "shift": sh})
+    sh_counts = {1: 0, 2: 0, 3: 0}
+    for r in rows:
+        sh_counts[r["shift"]] += 1
+    first_ts = str(pivoted.index[0]) if not pivoted.empty else "N/A"
+    last_ts = str(pivoted.index[-1]) if not pivoted.empty else "N/A"
+    return {
+        "date": date,
+        "query_start": query_start,
+        "query_end": query_end,
+        "data_points": len(rows),
+        "shift_counts": sh_counts,
+        "first_timestamp": first_ts,
+        "last_timestamp": last_ts,
+        "samples": rows,
+    }
+
+
 @app.get("/api/energy")
 def energy(date: str = Query(None)):
     if date is None:
