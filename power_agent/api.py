@@ -407,7 +407,19 @@ def _load_settings() -> dict:
         result[key] = get_setting(key, default)
     for key in _TARIFF_KEYS:
         result[key] = get_setting(key, getattr(CONFIG, key, ""))
+    result["ai_prompt"] = _load_ai_prompt()
     return result
+
+
+def _load_ai_prompt() -> str:
+    db_val = get_setting("ai_prompt", "")
+    if db_val:
+        return db_val
+    path = os.path.join(os.path.dirname(__file__), "ai_prompt.md")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            return f.read().strip()
+    return ""
 
 
 def _save_setting(key: str, value: str):
@@ -436,6 +448,8 @@ def admin_update_settings(body: dict = Body(...)):
     for key in _TARIFF_KEYS:
         if key in body:
             _save_setting(key, str(body[key]))
+    if "ai_prompt" in body:
+        set_setting("ai_prompt", body["ai_prompt"])
     return {"ok": True, **_load_settings()}
 
 
