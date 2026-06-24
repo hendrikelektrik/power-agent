@@ -33,6 +33,9 @@ class AppConfig:
     telegram_chat_id: str = ""
 
     admin_password: str = ""
+    gemini_api_key: str = ""
+    allowed_chat_id: str = ""
+    bot_enabled: bool = True
 
     daily_summary_time: str = "07:00"
 
@@ -58,7 +61,7 @@ if os.path.exists(_secrets_path):
     try:
         with open(_secrets_path) as f:
             secrets = json.load(f)
-        for key in ("telegram_bot_token", "telegram_chat_id", "admin_password"):
+        for key in ("telegram_bot_token", "telegram_chat_id", "admin_password", "gemini_api_key", "allowed_chat_id"):
             if key in secrets:
                 setattr(CONFIG, key, secrets[key])
         if "plants" in secrets:

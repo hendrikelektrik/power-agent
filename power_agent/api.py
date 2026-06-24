@@ -408,6 +408,8 @@ def _load_settings() -> dict:
     for key in _TARIFF_KEYS:
         result[key] = get_setting(key, getattr(CONFIG, key, ""))
     result["ai_prompt"] = _load_ai_prompt()
+    result["allowed_chat_id"] = get_setting("allowed_chat_id", CONFIG.allowed_chat_id)
+    result["bot_enabled"] = get_setting("bot_enabled", "1" if CONFIG.bot_enabled else "0")
     return result
 
 
@@ -450,6 +452,10 @@ def admin_update_settings(body: dict = Body(...)):
             _save_setting(key, str(body[key]))
     if "ai_prompt" in body:
         set_setting("ai_prompt", body["ai_prompt"])
+    if "allowed_chat_id" in body:
+        _save_setting("allowed_chat_id", str(body["allowed_chat_id"]))
+    if "bot_enabled" in body:
+        _save_setting("bot_enabled", body["bot_enabled"])
     return {"ok": True, **_load_settings()}
 
 
@@ -467,6 +473,23 @@ def admin_login(password: str = Body(..., embed=True)):
     if password == CONFIG.admin_password:
         return {"ok": True}
     return JSONResponse(status_code=403, content={"ok": False, "message": "Invalid password"})
+
+
+@app.get("/api/bot/pending-chat")
+def bot_pending_chat():
+    token = CONFIG.telegram_bot_token
+    if not token:
+        return {"chat_id": None}
+    try:
+        r = requests.get(f"https://api.telegram.org/bot{token}/getUpdates", params={"timeout": 5, "limit": 1}, timeout=10)
+        if r.ok:
+            data = r.json().get("result", [])
+            if data:
+                chat_id = data[-1].get("message", {}).get("chat", {}).get("id")
+                return {"chat_id": chat_id}
+    except Exception:
+        pass
+    return {"chat_id": None}
 
 
 # --- UI ---

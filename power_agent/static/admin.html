@@ -332,7 +332,7 @@
             <a href="/static/predict.html">Prediction</a>
             <a href="/static/energy.html">Energy</a>
             <a href="/static/notifications.html">Notifications</a>
-            <a href="/static/bot.html">Telegram Bot</a>
+
             <a href="/static/admin.html" class="active" id="adminLink">Admin</a>
         </nav>
         <div class="login-area">
@@ -392,6 +392,26 @@
                 <span class="hint">manually trigger today's report</span>
             </div>
             <div id="summaryResult" class="result-box"></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+            <div class="label">Telegram Bot</div>
+            <div class="toggle-row">
+                <div><div class="toggle-label">Bot Enabled</div><div class="toggle-desc">disable when developing on laptop</div></div>
+                <label class="toggle-switch"><input type="checkbox" id="tog_bot_enabled" onchange="saveBotToggle()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="label" style="margin-top:16px">Bot Access</div>
+            <div class="settings-row">
+                <span style="font-size:14px;color:#475569">Allowed Chat ID:</span>
+                <input type="text" id="allowedChatId" style="width:200px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px" placeholder="leave empty = anyone">
+                <button class="btn btn-primary" onclick="saveAllowedChatId()" style="padding:8px 16px;font-size:13px">Save</button>
+                <span id="chatIdSaved" style="font-size:12px;color:#16a34a;display:none">Saved</span>
+            </div>
+            <div style="margin-top:8px">
+                <button class="btn btn-primary" onclick="findMyChatId()" style="padding:6px 14px;font-size:12px">Find My Chat ID</button>
+                <span id="chatIdResult" style="font-size:13px;color:#475569;margin-left:12px"></span>
+            </div>
+            <span class="hint" style="font-size:12px;color:#94a3b8">Send a message to the bot from your phone, then click "Find My Chat ID".</span>
         </div>
 
         <div class="card" style="margin-top:16px">
@@ -513,6 +533,8 @@
                 document.getElementById('wbpEnd').value = d.wbp_end;
                 setToggle('tog_show_cost', d.show_cost);
                 document.getElementById('aiPrompt').value = d.ai_prompt || '';
+                document.getElementById('allowedChatId').value = d.allowed_chat_id || '';
+                setToggle('tog_bot_enabled', d.bot_enabled);
                 setToggle('tog_anomaly', d.notify_anomaly_enabled);
                 setToggle('tog_summary', d.notify_summary_enabled);
                 setToggle('tog_scada_offline', d.notify_scada_offline_enabled);
@@ -569,6 +591,39 @@
                 saved.style.display = 'inline';
                 setTimeout(function () { saved.style.display = 'none'; }, 2000);
             } catch (e) { alert('Failed to save tariff'); }
+        }
+
+        async function findMyChatId() {
+            try {
+                var r = await fetch('/api/bot/pending-chat');
+                var d = await r.json();
+                var el = document.getElementById('chatIdResult');
+                if (d.chat_id) {
+                    el.innerHTML = 'Your Chat ID: <strong>' + d.chat_id + '</strong>';
+                    document.getElementById('allowedChatId').value = d.chat_id;
+                } else {
+                    el.innerHTML = 'No message found. Send a message to the bot first.';
+                }
+            } catch (e) { alert('Failed'); }
+        }
+
+        async function saveBotToggle() {
+            var body = { bot_enabled: document.getElementById('tog_bot_enabled').checked ? '1' : '0' };
+            try { await fetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); } catch (e) { console.error(e); }
+        }
+
+        async function saveAllowedChatId() {
+            var val = document.getElementById('allowedChatId').value;
+            try {
+                await fetch('/api/admin/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ allowed_chat_id: val })
+                });
+                var saved = document.getElementById('chatIdSaved');
+                saved.style.display = 'inline';
+                setTimeout(function () { saved.style.display = 'none'; }, 2000);
+            } catch (e) { alert('Failed to save'); }
         }
 
         async function saveAiPrompt() {
