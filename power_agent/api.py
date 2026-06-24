@@ -173,9 +173,8 @@ def _calc_shifts_for_date(
     wbp_start: str = "18:00",
     wbp_end: str = "22:00",
 ) -> list:
-    prev = (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
     next_day = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
-    query_start = f"{prev} 21:00:00"
+    query_start = f"{date} 07:30:00"
     query_end = f"{next_day} 07:30:00"
     df = get_history("mmBanjaran", limit=10000, start_date=query_start, end_date=query_end)
     if df.empty:
@@ -289,29 +288,6 @@ def energy(date: str = Query(None)):
             sh["vs_last_week_pct"] = None
             sh["vs_last_week_kwh"] = None
             sh["last_week_kwh"] = None
-
-        # shift status
-        sh["status"] = "complete"
-        if date == datetime.now().strftime("%Y-%m-%d"):
-            now = datetime.now()
-            h, m = now.hour, now.minute
-            if sh["id"] == 1:
-                if h < 7 or (h == 7 and m < 30):
-                    sh["status"] = "pending"
-                elif h < 13 or (h == 13 and m < 30):
-                    sh["status"] = "partial"
-            elif sh["id"] == 2:
-                if h < 13 or (h == 13 and m < 30):
-                    sh["status"] = "pending"
-                elif h < 21 or (h == 21 and m < 30):
-                    sh["status"] = "partial"
-            elif sh["id"] == 3:
-                if h < 7 or (h == 7 and m < 30):
-                    sh["status"] = "partial"
-                elif h < 21 or (h == 21 and m < 30):
-                    sh["status"] = "partial"
-                else:
-                    sh["status"] = "partial"
 
     return {"date": date, "shifts": shifts, "show_cost": get_setting("show_cost", CONFIG.show_cost) == "1"}
 
